@@ -26,10 +26,10 @@ export function middleware(request: NextRequest) {
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "font-src 'self' https://fonts.gstatic.com data:",
-    "connect-src 'self' https://*.supabase.co",
+    "font-src 'self' https://fonts.gstatic.com data: https://fonts.googleapis.com",
+    "connect-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com",
     "frame-ancestors 'none'",
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);

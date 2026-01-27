@@ -1,0 +1,28 @@
+-- ============================================
+-- Seed Data (Optional) - Testing Company
+-- ============================================
+-- Run this AFTER linking your user (03_link_user.sql)
+-- This creates sample data for "Testing Company"
+-- ============================================
+
+-- Note: This is a placeholder
+-- For production seeding, use the seed script:
+-- npx tsx scripts/seed-database.ts
+--
+-- The seed script will populate:
+-- - Team members with @testingcompany.com emails
+-- - Projects with client = "Testing Company"
+-- - Tasks, notifications, and activities for Testing Company
+
+-- Example: Insert a sample team member (if needed)
+-- INSERT INTO team_members (id, name, email, role, "authUserId", "tasksAssigned", "tasksOverdue")
+-- VALUES (
+--   'tm-' || extract(epoch from now())::text,
+--   'Sample User',
+--   'sample@example.com',
+--   'member',
+--   NULL, -- Link manually using 03_link_user.sql
+--   0,
+--   0
+-- )
+-- ON CONFLICT (email) DO NOTHING;

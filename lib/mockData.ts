@@ -138,6 +138,16 @@ export const mockTeamMembers: TeamMember[] = [
   },
 ];
 
+// Helper function to format dates consistently
+const formatProjectDueDate = (daysFromNow: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  return `${month} ${day}, ${year}`;
+};
+
 // Mock Projects Data - Testing Company
 export const mockProjects: Project[] = [
   {
@@ -146,7 +156,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 75,
     status: 'on-track',
-    dueDate: 'Nov 20, 2024',
+    dueDate: formatProjectDueDate(15), // Due in 2 weeks
     taskCount: 24,
     teamMembers: [
       mockTeamMembers[0].avatar,
@@ -161,7 +171,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 40,
     status: 'at-risk',
-    dueDate: 'Dec 01, 2024',
+    dueDate: formatProjectDueDate(35), // Due in ~5 weeks
     taskCount: 18,
     teamMembers: [
       mockTeamMembers[1].avatar,
@@ -171,11 +181,11 @@ export const mockProjects: Project[] = [
   },
   {
     id: '3',
-    name: 'Q3 Marketing Campaign',
+    name: 'Q1 Marketing Campaign',
     client: 'Testing Company',
     progress: 90,
     status: 'on-track',
-    dueDate: 'Oct 28, 2024',
+    dueDate: formatProjectDueDate(5), // Due soon
     taskCount: 12,
     teamMembers: [
       mockTeamMembers[2].avatar,
@@ -188,7 +198,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 60,
     status: 'on-track',
-    dueDate: 'Dec 15, 2024',
+    dueDate: formatProjectDueDate(50), // Due in ~7 weeks
     taskCount: 20,
     teamMembers: [
       mockTeamMembers[0].avatar,
@@ -202,7 +212,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 25,
     status: 'at-risk',
-    dueDate: 'Jan 10, 2025',
+    dueDate: formatProjectDueDate(45), // Due in ~6 weeks
     taskCount: 8,
     teamMembers: [
       mockTeamMembers[4].avatar,
@@ -214,7 +224,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 55,
     status: 'on-track',
-    dueDate: 'Nov 30, 2024',
+    dueDate: formatProjectDueDate(25), // Due in ~3.5 weeks
     taskCount: 15,
     teamMembers: [
       mockTeamMembers[1].avatar,
@@ -228,7 +238,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 30,
     status: 'at-risk',
-    dueDate: 'Dec 20, 2024',
+    dueDate: formatProjectDueDate(60), // Due in ~8.5 weeks
     taskCount: 22,
     teamMembers: [
       mockTeamMembers[0].avatar,
@@ -243,7 +253,7 @@ export const mockProjects: Project[] = [
     client: 'Testing Company',
     progress: 85,
     status: 'on-track',
-    dueDate: 'Nov 05, 2024',
+    dueDate: formatProjectDueDate(10), // Due in ~1.5 weeks
     taskCount: 10,
     teamMembers: [
       mockTeamMembers[1].avatar,
@@ -547,11 +557,11 @@ export const mockTasks: Task[] = [
     },
     createdAt: getDateString(4, true),
   },
-  // Q3 Marketing Campaign Tasks
+  // Q1 Marketing Campaign Tasks
   {
     id: '10',
     title: 'Create Social Media Content',
-    project: 'Q3 Marketing Campaign',
+    project: 'Q1 Marketing Campaign',
     projectId: '3',
     taskNumber: '#MC-001',
     assignee: {
@@ -576,7 +586,7 @@ export const mockTasks: Task[] = [
   {
     id: '11',
     title: 'Design Email Campaign',
-    project: 'Q3 Marketing Campaign',
+    project: 'Q1 Marketing Campaign',
     projectId: '3',
     taskNumber: '#MC-005',
     assignee: {
@@ -586,7 +596,7 @@ export const mockTasks: Task[] = [
     dueDate: getDueDateString(1),
     priority: 'medium',
     status: 'review',
-    description: 'Design responsive email templates for the Q3 campaign launch.',
+    description: 'Design responsive email templates for the Q1 campaign launch.',
     subtasks: [
       { id: 'st-32', title: 'Create email template', isCompleted: true },
       { id: 'st-33', title: 'Test email rendering', isCompleted: true },
@@ -601,7 +611,7 @@ export const mockTasks: Task[] = [
   {
     id: '12',
     title: 'Launch Campaign Landing Page',
-    project: 'Q3 Marketing Campaign',
+    project: 'Q1 Marketing Campaign',
     projectId: '3',
     taskNumber: '#MC-008',
     assignee: {
@@ -1029,8 +1039,8 @@ export const mockTasks: Task[] = [
   },
   {
     id: '28',
-    title: 'Prepare Q4 Deck',
-    project: 'Q3 Marketing Campaign',
+    title: 'Prepare Q2 Deck',
+    project: 'Q1 Marketing Campaign',
     projectId: '3',
     taskNumber: '#MC-012',
     assignee: {
@@ -1040,9 +1050,9 @@ export const mockTasks: Task[] = [
     dueDate: getDueDateString(7),
     priority: 'low',
     status: 'drafting',
-    description: 'Create comprehensive presentation deck for Q4 strategy review meeting.',
+    description: 'Create comprehensive presentation deck for Q2 strategy review meeting.',
     subtasks: [
-      { id: 'st-84', title: 'Gather Q4 metrics and data', isCompleted: false },
+      { id: 'st-84', title: 'Gather Q1 metrics and data', isCompleted: false },
       { id: 'st-85', title: 'Create slide deck template', isCompleted: true },
       { id: 'st-86', title: 'Draft executive summary', isCompleted: false },
     ],
@@ -1054,7 +1064,7 @@ export const mockTasks: Task[] = [
   },
   {
     id: '29',
-    title: 'Q3 Financial Review',
+    title: 'Q1 Financial Review',
     project: 'Data Migration',
     projectId: '6',
     taskNumber: '#DM-010',
@@ -1065,7 +1075,7 @@ export const mockTasks: Task[] = [
     dueDate: getDueDateString(11),
     priority: 'medium',
     status: 'pending',
-    description: 'Conduct comprehensive review of Q3 financial performance.',
+    description: 'Conduct comprehensive review of Q1 financial performance.',
     subtasks: [
       { id: 'st-87', title: 'Compile revenue data', isCompleted: false },
       { id: 'st-88', title: 'Analyze expense reports', isCompleted: false },
@@ -1374,7 +1384,7 @@ export const mockActivities: Activity[] = [
     id: '3',
     user: 'Mia',
     action: 'created',
-    target: 'Q4 Assets',
+    target: 'Q1 Assets',
     time: '3 hours ago',
     icon: 'folder_open',
     iconColor: 'text-orange-600',
@@ -1405,7 +1415,7 @@ export const mockActivityFeed: ActivityFeedItem[] = [
     type: 'project',
     action: 'Created a new project',
     target: 'Mobile App Launch',
-    details: 'Kickoff meeting scheduled for Mon, Oct 28',
+    details: `Kickoff meeting scheduled for ${formatProjectDueDate(3)}`,
     time: '45 mins ago',
     color: 'bg-primary',
   },
@@ -1413,7 +1423,7 @@ export const mockActivityFeed: ActivityFeedItem[] = [
     id: '2',
     type: 'system',
     action: 'Status updated automatically',
-    target: 'Q4 Sales Deck',
+    target: 'Q1 Sales Deck',
     details: 'Status updated automatically after task "Draft Content" was marked complete.',
     time: '3 hours ago',
     color: 'bg-orange-400',
@@ -1452,7 +1462,7 @@ export const mockActivityFeed: ActivityFeedItem[] = [
     },
     type: 'task',
     action: 'Uploaded new assets to',
-    target: 'Marketing Campaign 2024',
+    target: 'Marketing Campaign 2026',
     attachments: [
       { name: 'Brief_v2.pdf', size: '2.4 MB', type: 'pdf' },
       { name: 'Banner_Main.png', size: '4.1 MB', type: 'image' },
@@ -1471,7 +1481,7 @@ export const mockDashboardStats = {
   projectProgress: [
     { name: 'Website Redesign', progress: 75 },
     { name: 'Mobile App MVP', progress: 40 },
-    { name: 'Q3 Marketing Campaign', progress: 90 },
+    { name: 'Q1 Marketing Campaign', progress: 90 },
     { name: 'E-commerce Platform', progress: 60 },
     { name: 'Brand Identity', progress: 25 },
     { name: 'Data Migration', progress: 55 },

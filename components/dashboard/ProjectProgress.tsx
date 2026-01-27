@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboard';
 
 export const ProjectProgress = () => {
-  const { data: stats, isLoading } = useDashboardStats();
+  const { data: stats, isLoading, error } = useDashboardStats();
   const projects = stats?.projectProgress || [];
   const [animatedProgress, setAnimatedProgress] = useState<Record<string, number>>({});
 
@@ -44,8 +44,72 @@ export const ProjectProgress = () => {
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
+            <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
+          </div>
+          <button
+            className="text-[#506395] hover:text-primary transition-colors"
+            aria-label="More options"
+            onClick={() => {}}
+          >
+            <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+          <span className="material-symbols-outlined text-[48px] text-red-500 mb-2">
+            error
+          </span>
+          <p className="text-red-500 dark:text-red-400 text-sm text-center">
+            Failed to load projects
+          </p>
+          <p className="text-[#506395] dark:text-gray-500 text-xs text-center mt-1">
+            Please refresh the page
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show only latest 4 projects
   const displayProjects = projects.slice(0, 4);
+
+  // Show empty state if no projects
+  if (displayProjects.length === 0) {
+    return (
+      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
+            <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
+          </div>
+          <button
+            className="text-[#506395] hover:text-primary transition-colors"
+            aria-label="More options"
+            onClick={() => {}}
+          >
+            <span className="material-symbols-outlined text-[18px]">more_horiz</span>
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+          <span className="material-symbols-outlined text-[48px] text-[#506395] dark:text-gray-500 mb-2">
+            folder_off
+          </span>
+          <p className="text-[#506395] dark:text-gray-400 text-sm text-center">
+            No projects found
+          </p>
+          <p className="text-[#506395] dark:text-gray-500 text-xs text-center mt-1">
+            Create a project to see progress here
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">

@@ -45,37 +45,93 @@ export async function getAuthenticatedUser(
   } else {
     // Try to get access token from cookies
     // Supabase stores session in cookies with pattern: sb-<project-ref>-auth-token
-    const cookieStore = cookies();
-    const allCookies = cookieStore.getAll();
+    const cookieHeader = request.headers.get('cookie');
+    const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
     
-    // Find Supabase auth token cookie
-    const authCookie = allCookies.find((cookie) =>
-      cookie.name.includes('auth-token') || cookie.name.includes('access-token')
-    );
-    
-    if (authCookie) {
-      try {
-        // Supabase stores tokens in JSON format in cookies
-        const cookieData = JSON.parse(authCookie.value);
-        accessToken = cookieData.access_token || cookieData.accessToken || null;
-      } catch {
-        // If not JSON, might be the token directly
-        accessToken = authCookie.value;
+    if (cookieHeader && projectRef) {
+      // Parse cookies from header string
+      const cookiePairs = cookieHeader.split(';').map(c => c.trim());
+      const cookieMap: Record<string, string> = {};
+      
+      cookiePairs.forEach(pair => {
+        const [name, ...valueParts] = pair.split('=');
+        if (name && valueParts.length > 0) {
+          // Handle URL-encoded cookie values
+          const value = valueParts.join('=');
+          cookieMap[name.trim()] = decodeURIComponent(value);
+        }
+      });
+      
+      // Try the exact Supabase cookie name first: sb-<project-ref>-auth-token
+      const sessionCookieName = `sb-${projectRef}-auth-token`;
+      const sessionCookieValue = cookieMap[sessionCookieName];
+      
+      if (sessionCookieValue) {
+        try {
+          // Supabase stores session as JSON: { access_token, refresh_token, expires_at, etc. }
+          const sessionData = JSON.parse(sessionCookieValue);
+          accessToken = sessionData.access_token || sessionData.accessToken || null;
+        } catch (parseError) {
+          // If parsing fails, try as direct token
+          accessToken = sessionCookieValue;
+        }
       }
-    } else {
-      // Try to find the session cookie directly
-      // Supabase uses cookie names like: sb-<project-ref>-auth-token
-      const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
-      if (projectRef) {
-        const sessionCookie = cookieStore.get(`sb-${projectRef}-auth-token`);
-        if (sessionCookie) {
+      
+      // Fallback: search for any cookie with auth-token in name
+      if (!accessToken) {
+        const authCookieName = Object.keys(cookieMap).find(name =>
+          name.includes('auth-token') || name.includes('access-token')
+        );
+        
+        if (authCookieName) {
           try {
-            const sessionData = JSON.parse(sessionCookie.value);
-            accessToken = sessionData.access_token || null;
+            const cookieValue = cookieMap[authCookieName];
+            const cookieData = JSON.parse(cookieValue);
+            accessToken = cookieData.access_token || cookieData.accessToken || null;
           } catch {
-            // Cookie might be in different format
+            accessToken = cookieMap[authCookieName];
           }
         }
+      }
+    }
+    
+    // Fallback: try using Next.js cookies() function
+    if (!accessToken) {
+      try {
+        const cookieStore = cookies();
+        const allCookies = cookieStore.getAll();
+        
+        // Try exact cookie name first
+        if (projectRef) {
+          const sessionCookie = cookieStore.get(`sb-${projectRef}-auth-token`);
+          if (sessionCookie) {
+            try {
+              const sessionData = JSON.parse(sessionCookie.value);
+              accessToken = sessionData.access_token || null;
+            } catch {
+              accessToken = sessionCookie.value;
+            }
+          }
+        }
+        
+        // Fallback: search all cookies
+        if (!accessToken) {
+          const authCookie = allCookies.find((cookie) =>
+            cookie.name.includes('auth-token') || cookie.name.includes('access-token')
+          );
+          
+          if (authCookie) {
+            try {
+              const cookieData = JSON.parse(authCookie.value);
+              accessToken = cookieData.access_token || cookieData.accessToken || null;
+            } catch {
+              accessToken = authCookie.value;
+            }
+          }
+        }
+      } catch (cookieError) {
+        // cookies() might not be available in all contexts
+        console.error('Error reading cookies:', cookieError);
       }
     }
   }

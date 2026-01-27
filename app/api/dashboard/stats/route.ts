@@ -44,13 +44,16 @@ export async function GET(request: NextRequest) {
     const activeProjects = projects.filter((p) => p.status === 'on-track').length;
     const delayedProjects = projects.filter((p) => p.status === 'late' || p.status === 'at-risk').length;
 
-    // Calculate trend percentage (comparing recent task completions)
-    // For now, use a simple calculation based on completion rate
+    // Calculate trend percentage based on task completion rate
+    // Trend shows improvement/degradation from a neutral baseline
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t) => t.isCompleted || t.status === 'done').length;
     const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-    // Trend percentage: compare current completion rate to a baseline (assuming 50% baseline)
-    const trendPercentage = Math.round(completionRate - 50);
+    
+    // Calculate trend: compare completion rate to average project progress
+    // This provides a more dynamic baseline based on actual project performance
+    const averageProjectProgress = totalProjects > 0 ? totalProgress / totalProjects : 0;
+    const trendPercentage = Math.round(completionRate - averageProjectProgress);
 
     // Get project progress for the ProjectProgress component
     const projectProgress = projects

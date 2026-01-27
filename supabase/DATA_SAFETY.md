@@ -54,6 +54,7 @@ The seed script uses **`upsert`** with `onConflict: 'id'`, which means:
 - **Tasks**: Updates records with IDs 1-30 (if they exist)
 - **Notifications**: Updates records with IDs 1-15 (if they exist)
 - **Activities**: Updates records with IDs 1-4 (if they exist)
+- **Project Memberships**: Deletes and recreates memberships for projects 1-8 (if they exist)
 
 ### What Stays Untouched:
 - ✅ Records with different IDs (not in mock data)

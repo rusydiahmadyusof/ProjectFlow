@@ -84,8 +84,8 @@ export const useAuth = () => {
 
       setUser(null);
       // Redirect to landing page (root) after logout
-      router.push('/');
-      router.refresh();
+      // Use window.location for a full page reload to ensure clean state
+      window.location.href = '/';
       return { error: null };
     } catch (error: any) {
       return { error: error.message || 'Failed to sign out' };

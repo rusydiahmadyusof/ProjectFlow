@@ -7,63 +7,8 @@ import { AppLayout } from './layout/AppLayout';
 import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
+import { useActivityFeed } from '@/hooks/useActivityFeed';
 import type { Project, Task } from '@/components/types';
-
-const defaultActivityFeed: ActivityFeedItem[] = [
-  {
-    id: '1',
-    user: {
-      name: 'Alex Johnson',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDh8lD_ODeBnfOpqWdrlQnE2xxV2opGHR_DqSCV_9qRaqOP491qqADlYHipeFfLCmfUSMeNO53kIYjIU7eDAa5Aw2gJg2KkCiOvkDoxXCK5mi9z7LJOwO-hYHR2LvGL_6rgEtPgfyBu429cCsNwOKFpN27M9OO7z4Ojds_6aJCaolujQn4G-62NKJh6fKm4JoaH_z_gDSX_sXwEcEIKTe0tP_EHcuyQb1fVEjf7rk9ASJaSwgvVfgub_QxN6MkhtXRpJUrXaf5FhDc',
-      role: 'Project Manager',
-    },
-    type: 'project',
-    action: 'Created a new project',
-    target: 'Mobile App Launch',
-    details: 'Kickoff meeting scheduled for Mon, Oct 28',
-    time: '45 mins ago',
-    color: 'bg-primary',
-  },
-  {
-    id: '2',
-    type: 'system',
-    action: 'Status updated automatically',
-    target: 'Q4 Sales Deck',
-    details: 'Status updated automatically after task "Draft Content" was marked complete.',
-    time: '3 hours ago',
-    color: 'bg-orange-400',
-  },
-  {
-    id: '3',
-    user: {
-      name: 'Engineering Team',
-      avatar: '',
-    },
-    type: 'team',
-    action: 'Completed 5 tasks',
-    target: 'Website Migration',
-    details: 'Setup staging environment, Migrate database schema, + 3 more tasks',
-    time: '5 hours ago',
-    color: 'bg-green-500',
-  },
-  {
-    id: '4',
-    user: {
-      name: 'Emily Blunt',
-      avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdCnsXRXUU3Y4pBuCN2glA6qMCbZnu8L2mDFQepMx0YPd0qsPwiEwbaKgFoVVIoW49VQXaZXuBVNjdyCvFAZnhPqQ_DWCmrRe_Wr3kgX-ll1Y3qCfh9vo6O-vzOn297cIhVaFTCMIuSh5zleQ1F4BsdXBCFOd0CbVOVlA_JWJ2T__AltSV16JRFz12gb8Tw8h1vNsA1k19Llt--mn9BbCcl9DptYUEiCJL2R_Xrz-wDPUxFQ8m9QWSr0bAO2MbzvnWDtEGrQFer3Q',
-      role: 'Design Lead',
-    },
-    type: 'task',
-    action: 'Uploaded new assets to',
-    target: 'Marketing Campaign 2024',
-    attachments: [
-      { name: 'Brief_v2.pdf', size: '2.4 MB', type: 'pdf' },
-      { name: 'Banner_Main.png', size: '4.1 MB', type: 'image' },
-    ],
-    time: 'Yesterday',
-    color: 'bg-purple-500',
-  },
-];
 
 export const NotificationScreen = () => {
   const router = useRouter();
@@ -71,6 +16,7 @@ export const NotificationScreen = () => {
   const { mutate: markAsRead } = useMarkNotificationRead();
   const { data: tasksData } = useTasks();
   const { data: projectsData } = useProjects();
+  const { data: activityFeed = [], isLoading: isLoadingActivityFeed } = useActivityFeed();
   const tasks: Task[] = tasksData?.pages.flatMap((page) => page.tasks) ?? [];
   const projects: Project[] = projectsData ?? [];
   const [activeTab, setActiveTab] = useState('all');
@@ -407,7 +353,12 @@ export const NotificationScreen = () => {
               </div>
             </div>
             <div className="relative pl-4 border-l border-slate-200 dark:border-slate-800 space-y-8">
-              {defaultActivityFeed.map((item) => (
+              {isLoadingActivityFeed ? (
+                <div className="py-8 text-center text-slate-500">Loading activity feed...</div>
+              ) : activityFeed.length === 0 ? (
+                <div className="py-8 text-center text-slate-500">No activity to display</div>
+              ) : (
+                activityFeed.map((item) => (
                     <div key={item.id} className="relative pl-8">
                       <div className={`absolute -left-[21px] top-1 size-3 rounded-full border-2 border-white dark:border-slate-900 ${item.color} ring-1 ring-primary/20`}></div>
                       <div className="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-100 dark:border-slate-700/50">
@@ -454,7 +405,8 @@ export const NotificationScreen = () => {
                         )}
                       </div>
                     </div>
-                  ))}
+                  ))
+              )}
             </div>
             <div className="flex justify-center mt-4">
               <button className="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">

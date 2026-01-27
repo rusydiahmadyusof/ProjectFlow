@@ -25,10 +25,12 @@ Links your Supabase Auth user to a team_member record.
 - **Note**: For Testing Company owner (dev.rusydi@gmail.com), see `05_link_owner.sql`
 
 ### 4. **04_seed.sql** (Optional)
-Seed data for testing (currently empty).
+Seed data for testing.
 - Run after linking your user
-- Or use: `npx tsx scripts/seed-database.ts`
+- Seeds: Users, Team Members, Projects, and Project Memberships
+- Or use: `npx tsx scripts/seed-database.ts` for complete seeding (includes Tasks, Notifications, Activities)
 - Seeds Testing Company data including owner (dev.rusydi@gmail.com)
+- **Note**: Tasks, Notifications, and Activities are best seeded via the TypeScript script due to complex JSONB structures
 
 ### 5. **05_link_owner.sql** (Optional)
 Links Testing Company owner (dev.rusydi@gmail.com) as owner role.

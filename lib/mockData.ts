@@ -1489,3 +1489,49 @@ export const mockDashboardStats = {
     { name: 'API Integration', progress: 85 },
   ],
 };
+
+// Mock Project Memberships Data - Testing Company
+// Maps team members to projects based on project.teamMembers arrays
+export const mockProjectMemberships = [
+  // Project 1: Website Redesign - members: 1, 2, 3, 4
+  { projectId: '1', memberId: '1', role: 'member' as const },
+  { projectId: '1', memberId: '2', role: 'member' as const },
+  { projectId: '1', memberId: '3', role: 'member' as const },
+  { projectId: '1', memberId: '4', role: 'member' as const },
+  
+  // Project 2: Mobile App MVP - members: 2, 5, 6
+  { projectId: '2', memberId: '2', role: 'member' as const },
+  { projectId: '2', memberId: '5', role: 'member' as const },
+  { projectId: '2', memberId: '6', role: 'member' as const },
+  
+  // Project 3: Q1 Marketing Campaign - members: 3, 7
+  { projectId: '3', memberId: '3', role: 'member' as const },
+  { projectId: '3', memberId: '7', role: 'member' as const },
+  
+  // Project 4: E-commerce Platform - members: 1, 4, 8
+  { projectId: '4', memberId: '1', role: 'member' as const },
+  { projectId: '4', memberId: '4', role: 'member' as const },
+  { projectId: '4', memberId: '8', role: 'member' as const },
+  
+  // Project 5: Brand Identity - members: 5
+  { projectId: '5', memberId: '5', role: 'member' as const },
+  
+  // Project 6: Data Migration - members: 2, 3, 6
+  { projectId: '6', memberId: '2', role: 'member' as const },
+  { projectId: '6', memberId: '3', role: 'member' as const },
+  { projectId: '6', memberId: '6', role: 'member' as const },
+  
+  // Project 7: Customer Portal - members: 1, 4, 5, 8
+  { projectId: '7', memberId: '1', role: 'member' as const },
+  { projectId: '7', memberId: '4', role: 'member' as const },
+  { projectId: '7', memberId: '5', role: 'member' as const },
+  { projectId: '7', memberId: '8', role: 'member' as const },
+  
+  // Project 8: API Integration - members: 2, 6
+  { projectId: '8', memberId: '2', role: 'member' as const },
+  { projectId: '8', memberId: '6', role: 'member' as const },
+  
+  // Add guest member (Charlie Brown - ID 10) to a couple projects as example
+  { projectId: '1', memberId: '10', role: 'guest' as const },
+  { projectId: '3', memberId: '10', role: 'guest' as const },
+];

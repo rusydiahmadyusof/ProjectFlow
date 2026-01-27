@@ -5,39 +5,11 @@ import { TeamMember } from './types';
 import { AppLayout } from './layout/AppLayout';
 import { getTeamRoleConfig } from './utils/statusConfig';
 import { AlertModal } from './modals';
-
-const defaultTeamMembers: TeamMember[] = [
-  {
-    id: '1',
-    name: 'Sarah Jenkins',
-    email: 'sarah@acme.corp',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDt8BCAqJidRl5Lr7VpKNv03MR68zV9vprz2ALakBF9p0EyYhLTyir0GRljyMhcvGDWdcQVIAFdwnPRSkYYkNd0EnJTX2PxT5W6fwWMANhc7FLbig1ic9JfHKq_0Kq_nPsKrWLYkUu1mBfVcRTcf0cGm9KE6rCo9r8vVYMKIaKltyUd9xZ9GAeePqgS7xhDD29eXH6bZJgCuDROuj_5I33W7x-q-5CpxI19CQJNDrMO3wlyJNNFRGah-8SutVIwyzKcph6ZxUOodwc',
-    role: 'admin',
-    tasksAssigned: 0,
-    tasksOverdue: 0,
-  },
-  {
-    id: '2',
-    name: 'Michael Chen',
-    email: 'michael@acme.corp',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB6yudCFYeMK8rL4sttAIW8Wo8KPiM-n4a3SpLxBVWS5aH_P5jRLapNYvqVR3XkjlIDepc37xvWnfbZajFkRDM2Y5heICsIBV5MsDdl047nLlcgNSHnBL6Vh4g7bFpXT0xjWXe9EgxkNPxnX9P_5uttqDq7i-cML77mYnIc2RY3QP_gbMbDAUChGad1Hs2EibEq8QTu5arNLxWgTtkhYpIuyRMhzprhP7GRMeXjMJJRrVmMlbTvIa5G_tHt-7W9sbFJgZei_DeRDyk',
-    role: 'member',
-    tasksAssigned: 0,
-    tasksOverdue: 0,
-  },
-  {
-    id: '3',
-    name: 'Emily Davis',
-    email: 'emily@acme.corp',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCEMD6hK7MJ2qCt0mRqYQ61jCDNbXmlH8LZmF9kW-XpslDoRLVB5OZ4UDFKWU3g4rfkbrwKkPbWzKuS71SFKgY8NPvwoY8ArPq9HK4zx9rTX7GkEHiOjFWx26ZzjtGSLnbKoBV9aq4U6V6jjm922RkaB1JQONwSu7adrAzdgKTrYKgEd1lLeJtcKe_OxMamvojSxtWSKwGQlgbuMNM2SiBV2ThTuw87ZHxRwUKErjP6hJGBS4Qik1K-jldejj4uXir2rxqmgVXSlq8',
-    role: 'guest',
-    tasksAssigned: 0,
-    tasksOverdue: 0,
-  },
-];
+import { useTeam } from '@/hooks/useTeam';
 
 
 export const SettingsScreen = () => {
+  const { data: teamMembers = [], isLoading: isLoadingTeam } = useTeam();
   const [orgName, setOrgName] = useState('Acme Corp');
   const [supportEmail, setSupportEmail] = useState('admin@acme.inc');
   const [darkMode, setDarkMode] = useState(false);
@@ -173,27 +145,39 @@ export const SettingsScreen = () => {
                     </button>
                   </div>
                   <div className="flex flex-col divide-y divide-border-light dark:divide-gray-800">
-                    {defaultTeamMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between py-4 first:pt-0">
-                        <div className="flex items-center gap-3">
-                          <div className="size-10 rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${member.avatar}')` }} role="img" aria-label={`${member.name} avatar`}></div>
-                          <div className="flex flex-col">
-                            <p className="text-sm font-bold text-text-main dark:text-white">{member.name}</p>
-                            <p className="text-xs text-text-secondary">{member.email}</p>
+                    {isLoadingTeam ? (
+                      <div className="py-8 text-center text-text-secondary">Loading team members...</div>
+                    ) : teamMembers.length === 0 ? (
+                      <div className="py-8 text-center text-text-secondary">No team members found</div>
+                    ) : (
+                      teamMembers.map((member) => (
+                        <div key={member.id} className="flex items-center justify-between py-4 first:pt-0">
+                          <div className="flex items-center gap-3">
+                            {member.avatar ? (
+                              <div className="size-10 rounded-full bg-cover bg-center" style={{ backgroundImage: `url('${member.avatar}')` }} role="img" aria-label={`${member.name} avatar`}></div>
+                            ) : (
+                              <div className="size-10 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-text-secondary font-semibold">
+                                {member.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex flex-col">
+                              <p className="text-sm font-bold text-text-main dark:text-white">{member.name}</p>
+                              <p className="text-xs text-text-secondary">{member.email}</p>
+                            </div>
                           </div>
+                          {(() => {
+                            const roleConfig = getTeamRoleConfig(member.role);
+                            return (
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${roleConfig.bgColor} ${roleConfig.textColor}`}
+                              >
+                                {roleConfig.label}
+                              </span>
+                            );
+                          })()}
                         </div>
-                        {(() => {
-                          const roleConfig = getTeamRoleConfig(member.role);
-                          return (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${roleConfig.bgColor} ${roleConfig.textColor}`}
-                            >
-                              {roleConfig.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
                 <div className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-border-light dark:border-border-dark p-6 md:p-8">

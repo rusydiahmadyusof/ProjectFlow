@@ -31,6 +31,7 @@ import {
   mockNotifications,
   mockActivities,
   mockUser,
+  mockProjectMemberships,
 } from '../lib/mockData';
 
 // Load Next.js local env file for this script (tsx does not auto-load it)
@@ -182,6 +183,29 @@ async function seedDatabase() {
     if (activitiesError) throw activitiesError;
     console.log(`✅ ${mockActivities.length} activities seeded\n`);
 
+    // 7. Seed Project Memberships
+    console.log('🔗 Seeding project memberships...');
+    // First, delete existing memberships for these projects to avoid duplicates
+    const projectIds = mockProjects.map((p) => p.id);
+    const { error: deleteError } = await supabase
+      .from('project_memberships')
+      .delete()
+      .in('projectId', projectIds);
+    if (deleteError) throw deleteError;
+    
+    // Then insert new memberships
+    const { error: membershipsError } = await supabase
+      .from('project_memberships')
+      .insert(
+        mockProjectMemberships.map((membership) => ({
+          projectId: membership.projectId,
+          memberId: membership.memberId,
+          role: membership.role,
+        }))
+      );
+    if (membershipsError) throw membershipsError;
+    console.log(`✅ ${mockProjectMemberships.length} project memberships seeded\n`);
+
     console.log('🎉 Database seeding completed successfully!');
     console.log('\n📊 Summary (Testing Company):');
     console.log(`   - Company: Testing Company`);
@@ -191,6 +215,7 @@ async function seedDatabase() {
     console.log(`   - Tasks: ${mockTasks.length}`);
     console.log(`   - Notifications: ${mockNotifications.length}`);
     console.log(`   - Activities: ${mockActivities.length}`);
+    console.log(`   - Project Memberships: ${mockProjectMemberships.length}`);
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     process.exit(1);

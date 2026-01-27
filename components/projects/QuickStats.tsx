@@ -18,11 +18,79 @@ export const QuickStats = () => {
   const stats = useMemo(() => {
     const totalProjects = projects.length;
     const overdueTasks = tasks.filter((t) => t.status === 'overdue').length;
+    
+    // Calculate tasks due today
+    const today = new Date();
+    const todayMonth = today.toLocaleDateString('en-US', { month: 'short' });
+    const todayDay = today.getDate();
+    const todayYear = today.getFullYear();
+    
     const dueToday = tasks.filter((t) => {
-      // Simple check - in real app, parse dates properly
-      return t.status !== 'done' && !t.isCompleted;
+      if (t.status === 'done' || t.isCompleted || !t.dueDate) return false;
+      
+      // Parse various date formats
+      const dueDateStr = t.dueDate.trim();
+      
+      // Format: "Mon DD, YYYY" or "Mon DD"
+      if (dueDateStr.includes(',')) {
+        const parts = dueDateStr.split(',');
+        const datePart = parts[0].trim();
+        const yearPart = parts[1]?.trim();
+        
+        if (datePart.startsWith(todayMonth)) {
+          const dayMatch = datePart.match(/\d+/);
+          if (dayMatch) {
+            const day = parseInt(dayMatch[0]);
+            if (day === todayDay) {
+              // If year is specified, check it matches
+              if (yearPart) {
+                return parseInt(yearPart) === todayYear;
+              }
+              return true; // No year specified, assume current year
+            }
+          }
+        }
+      } else {
+        // Format: "Mon DD"
+        if (dueDateStr.startsWith(todayMonth)) {
+          const dayMatch = dueDateStr.match(/\d+/);
+          if (dayMatch && parseInt(dayMatch[0]) === todayDay) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
     }).length;
-    return { totalProjects, dueToday, overdueTasks };
+    
+    // Calculate project growth (compare current projects to previous period)
+    // For now, calculate based on active projects vs delayed
+    const activeProjects = projects.filter((p) => p.status === 'on-track').length;
+    const growthPercentage = totalProjects > 0 
+      ? Math.round((activeProjects / totalProjects) * 100) - 50 // Normalize around 50%
+      : 0;
+    
+    // Calculate overall progress percentage
+    const totalProgress = projects.reduce((sum, p) => sum + (p.progress || 0), 0);
+    const overallProgress = totalProjects > 0 ? Math.round(totalProgress / totalProjects) : 0;
+    
+    // Get unique team members working on active tasks
+    const activeTaskAssignees = new Set(
+      tasks
+        .filter((t) => t.status !== 'done' && !t.isCompleted && t.assignee?.avatar)
+        .map((t) => t.assignee?.avatar)
+        .filter(Boolean)
+    );
+    const activeTeamMembers = Array.from(activeTaskAssignees);
+    
+    return { 
+      totalProjects, 
+      dueToday, 
+      overdueTasks, 
+      growthPercentage,
+      overallProgress,
+      activeTeamMembers,
+    };
   }, [projects, tasks]);
 
   useEffect(() => {
@@ -60,9 +128,11 @@ export const QuickStats = () => {
       animateNumber(setAnimatedTotalProjects, stats.totalProjects, 300);
       animateNumber(setAnimatedDueToday, stats.dueToday, 400);
       
-      // Animate progress bar (50% = 119 offset)
+      // Animate progress bar (calculate offset based on overall progress)
+      // Progress bar: 238 total circumference, offset = 238 - (progress% * 238 / 100)
+      const progressOffset = 238 - (stats.overallProgress * 238 / 100);
       setTimeout(() => {
-        setAnimatedProgress(119);
+        setAnimatedProgress(progressOffset);
       }, 500);
     }
   }, [projectsLoading, tasksLoading, stats.totalProjects, stats.dueToday]);
@@ -92,10 +162,18 @@ export const QuickStats = () => {
             </div>
           </div>
           <div className="flex items-end justify-between mt-4 z-10">
-            <div className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full border border-green-100 dark:border-green-900/30">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              <span>+18% growth</span>
-            </div>
+            {stats.growthPercentage > 0 && (
+              <div className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full border border-green-100 dark:border-green-900/30">
+                <span className="material-symbols-outlined text-[14px]">trending_up</span>
+                <span>+{stats.growthPercentage}% growth</span>
+              </div>
+            )}
+            {stats.growthPercentage <= 0 && (
+              <div className="flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-50 dark:bg-slate-900/20 px-2 py-1 rounded-full border border-slate-100 dark:border-slate-900/30">
+                <span className="material-symbols-outlined text-[14px]">trending_flat</span>
+                <span>{Math.abs(stats.growthPercentage)}%</span>
+              </div>
+            )}
             <svg
               className="w-28 h-12 text-primary drop-shadow-sm"
               fill="none"
@@ -132,27 +210,22 @@ export const QuickStats = () => {
               Tasks remaining
             </p>
             <div className="mt-auto pt-2 flex -space-x-2">
-              <div
-                className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white dark:border-slate-900 bg-cover"
-                style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQEXSgSZ1ef32haRBH4W5GH-ZOWxNLX6_KNQW9qj364o-qa_6Ks_wwfO9_KLWCZwOElMaJpzXyk3zI6MX3MMAEtsFA433oG5wuZ03LkYNe1pN94iri65xTRc85L2g0rDLYtwAbebt3OcCZJIljZym2f_pEbNfdmeWTDT00YzxCVD3GZSGtBjnZ6okqP7hLdWi5ukEhewVT0ygkQBz502OryTpsM3EE2e3AC63WX98XE23CqQVB7VOeVLeSE16irut69U6TlPbHf3g')",
-                }}
-                role="img"
-                aria-label="Team member avatar"
-              ></div>
-              <div
-                className="w-7 h-7 rounded-full bg-slate-300 border-2 border-white dark:border-slate-900 bg-cover"
-                style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDL6TunXypl190_qQoojRwhswb3NNcby0t-M46kT8iPDxsjEn3BuqdopOsLNowsgX8H5zQ207Vdcmi9VFFunk78zmdxDgyE9NPze9B9TZCoWL8Yvpsq0wYJsopSNiWI1zB6hE5Kv0JmHtSAA2_t3upJOjNKCFj83z9nz6krIwemr43jFOSsy9KycnwrmPBGme2QWii0fM6dxvJgXdq2-nS7uEYMA9ZpJE41ogY_He-KOMXDOv59HzSZxihdGPfROnr9l0Y_LnyPIJo')",
-                }}
-                role="img"
-                aria-label="Team member avatar"
-              ></div>
-              <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-500">
-                +3
-              </div>
+              {stats.activeTeamMembers.slice(0, 2).map((avatar, idx) => (
+                <div
+                  key={idx}
+                  className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white dark:border-slate-900 bg-cover"
+                  style={{
+                    backgroundImage: avatar ? `url('${avatar}')` : undefined,
+                  }}
+                  role="img"
+                  aria-label="Team member avatar"
+                ></div>
+              ))}
+              {stats.activeTeamMembers.length > 2 && (
+                <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-500">
+                  +{stats.activeTeamMembers.length - 2}
+                </div>
+              )}
             </div>
           </div>
           <div className="relative w-24 h-24 flex-shrink-0 flex items-center justify-center">
@@ -184,7 +257,7 @@ export const QuickStats = () => {
             </svg>
             <div className="absolute inset-0 flex items-center justify-center flex-col">
               <span className="text-lg font-bold text-slate-900 dark:text-white transition-all duration-1000 ease-out" style={{ transitionDelay: '0.5s', opacity: isAnimated ? 1 : 0 }}>
-                50%
+                {stats.overallProgress}%
               </span>
             </div>
           </div>

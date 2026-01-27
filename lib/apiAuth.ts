@@ -42,59 +42,46 @@ export async function getAuthenticatedUser(
 
   if (authHeader?.startsWith('Bearer ')) {
     accessToken = authHeader.substring(7);
-  }
-
-  // Create Supabase client that can read cookies
-  const cookieStore = cookies();
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: any) {
-        // Not needed for read-only operations
-      },
-      remove(name: string, options: any) {
-        // Not needed for read-only operations
-      },
-    },
-  });
-
-  // If we have an access token from header, verify it directly
-  if (accessToken) {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(accessToken);
-
-    if (userError || !user) {
-      return {
-        error: NextResponse.json(
-          { error: 'Unauthorized', message: 'Invalid authentication token' },
-          { status: 401 }
-        ),
-      };
+  } else {
+    // Try to get access token from cookies
+    // Supabase stores session in cookies with pattern: sb-<project-ref>-auth-token
+    const cookieStore = cookies();
+    const allCookies = cookieStore.getAll();
+    
+    // Find Supabase auth token cookie
+    const authCookie = allCookies.find((cookie) =>
+      cookie.name.includes('auth-token') || cookie.name.includes('access-token')
+    );
+    
+    if (authCookie) {
+      try {
+        // Supabase stores tokens in JSON format in cookies
+        const cookieData = JSON.parse(authCookie.value);
+        accessToken = cookieData.access_token || cookieData.accessToken || null;
+      } catch {
+        // If not JSON, might be the token directly
+        accessToken = authCookie.value;
+      }
+    } else {
+      // Try to find the session cookie directly
+      // Supabase uses cookie names like: sb-<project-ref>-auth-token
+      const projectRef = supabaseUrl.split('//')[1]?.split('.')[0];
+      if (projectRef) {
+        const sessionCookie = cookieStore.get(`sb-${projectRef}-auth-token`);
+        if (sessionCookie) {
+          try {
+            const sessionData = JSON.parse(sessionCookie.value);
+            accessToken = sessionData.access_token || null;
+          } catch {
+            // Cookie might be in different format
+          }
+        }
+      }
     }
-
-    return {
-      user,
-      supabase: createClient(supabaseUrl, supabaseAnonKey, {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      }),
-    };
   }
 
-  // Otherwise, get session from cookies
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError || !session || !session.user) {
+  // If no access token found, return unauthorized
+  if (!accessToken) {
     return {
       error: NextResponse.json(
         { error: 'Unauthorized', message: 'Authentication required' },
@@ -103,11 +90,20 @@ export async function getAuthenticatedUser(
     };
   }
 
-  // Verify the user is still valid
+  // Create Supabase client and verify the token
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
+
+  // Verify the user is valid
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser(session.access_token);
+  } = await supabase.auth.getUser(accessToken);
 
   if (userError || !user) {
     return {
@@ -123,7 +119,7 @@ export async function getAuthenticatedUser(
     supabase: createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       },
     }),
@@ -159,7 +155,7 @@ export async function getOptionalAuth(
     // Return null user but still provide supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || '';
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey) as ReturnType<typeof createClient>;
     return { user: null, supabase };
   }
 

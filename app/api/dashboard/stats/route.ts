@@ -1,8 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireAuth } from '@/lib/apiAuth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult; // Returns 401 if not authenticated
+    }
+
+    const { user } = authResult;
+
     // Check if service role key is configured
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('SUPABASE_SERVICE_ROLE_KEY is missing in server environment');

@@ -1,14 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { User } from '@/components/types';
+import { requireAuth } from '@/lib/apiAuth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult; // Returns 401 if not authenticated
+    }
+
+    const { user: authUser } = authResult;
+
+    // Fetch user data from team_members table using authUserId
     const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', 'current')
-      .single();
+      .from('team_members')
+      .select('name, role, avatar')
+      .eq('authUserId', authUser.id)
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user:', error);
@@ -18,11 +28,29 @@ export async function GET() {
       );
     }
 
+    // If not found in team_members, try users table as fallback
     if (!data) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('name, role, avatar')
+        .eq('id', 'current')
+        .maybeSingle();
+
+      if (userError || !userData) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        );
+      }
+
+      // Transform database record to match User interface
+      const user: User = {
+        name: userData.name,
+        role: userData.role,
+        avatar: userData.avatar || '',
+      };
+
+      return NextResponse.json(user);
     }
 
     // Transform database record to match User interface

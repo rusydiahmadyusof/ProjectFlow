@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Project } from '@/components/types';
+import { requireAuth } from '@/lib/apiAuth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult; // Returns 401 if not authenticated
+    }
     const { data, error } = await supabaseAdmin
       .from('projects')
       .select('*')
@@ -48,6 +54,12 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult; // Returns 401 if not authenticated
+    }
+
     const body = await request.json();
 
     // Check if project exists
@@ -108,6 +120,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Require authentication
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult; // Returns 401 if not authenticated
+    }
     const { error } = await supabaseAdmin
       .from('projects')
       .delete()

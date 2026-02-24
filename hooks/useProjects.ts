@@ -5,8 +5,25 @@ import { Project } from '@/components/types';
 import { supabase } from '@/lib/supabase';
 import { withErrorHandling } from '@/lib/errorHandler';
 
+function normalizeProject(row: Record<string, unknown>): Project {
+  return {
+    id: String(row.id ?? ''),
+    name: String(row.name ?? ''),
+    client: String(row.client ?? ''),
+    progress: Number(row.progress ?? 0),
+    status: (row.status as Project['status']) ?? 'on-track',
+    dueDate: String(row.dueDate ?? row.due_date ?? ''),
+    taskCount: Number(row.taskCount ?? row.task_count ?? 0),
+    teamMembers: Array.isArray(row.teamMembers) ? row.teamMembers as string[] : (Array.isArray(row.team_members) ? row.team_members as string[] : []),
+    isOverdue: Boolean(row.isOverdue ?? row.is_overdue ?? false),
+    isArchived: row.isArchived != null ? Boolean(row.isArchived) : row.is_archived != null ? Boolean(row.is_archived) : undefined,
+    projectLeaderId: (row.projectLeaderId ?? row.project_leader_id ?? null) as string | null | undefined,
+    createdAt: row.createdAt != null ? String(row.createdAt) : row.created_at != null ? String(row.created_at) : undefined,
+  };
+}
+
 const fetchProjects = async (): Promise<Project[]> => {
-  return withErrorHandling(
+  const result = await withErrorHandling(
     async () => {
       const { data, error } = await supabase
         .from('projects')
@@ -16,6 +33,8 @@ const fetchProjects = async (): Promise<Project[]> => {
     },
     'fetching projects'
   ) as Promise<Project[]>;
+  const rows = Array.isArray(result) ? result : [];
+  return rows.map((row) => normalizeProject(row as Record<string, unknown>));
 };
 
 export const useProjects = () => {
@@ -34,22 +53,20 @@ export const useCreateProject = () => {
     mutationFn: async (project: Partial<Project>) => {
       return withErrorHandling(
         async () => {
+          const row: Record<string, unknown> = {
+            id: project.id ?? `project-${Date.now()}`,
+            name: project.name || '',
+            client: project.client || '',
+            dueDate: project.dueDate || '',
+            progress: project.progress ?? 0,
+            status: (project.status as Project['status']) || 'on-track',
+            taskCount: project.taskCount ?? 0,
+            teamMembers: project.teamMembers ?? [],
+            isOverdue: project.isOverdue ?? false,
+          };
           const { data, error } = await supabase
             .from('projects')
-            .insert([
-              {
-                id: project.id ?? `project-${Date.now()}`,
-                name: project.name || '',
-                client: project.client || '',
-                dueDate: project.dueDate || '',
-                progress: project.progress ?? 0,
-                status: (project.status as Project['status']) || 'on-track',
-                taskCount: project.taskCount ?? 0,
-                teamMembers: project.teamMembers ?? [],
-                isOverdue: project.isOverdue ?? false,
-                isArchived: project.isArchived ?? false,
-              },
-            ])
+            .insert([row])
             .select()
             .single();
           return { data, error };
@@ -88,12 +105,13 @@ export const useCreateProject = () => {
       }
     },
     onSuccess: (data) => {
+      const normalized = normalizeProject((data ?? {}) as Record<string, unknown>);
       queryClient.setQueryData<Project[]>(['projects'], (old = []) => {
-        if (!old || old.length === 0) return [data];
+        if (!old || old.length === 0) return [normalized];
         const index = old.findIndex((p) => p.id.startsWith('temp-'));
-        if (index === -1) return [...old, data];
+        if (index === -1) return [...old, normalized];
         const updated = [...old];
-        updated[index] = data;
+        updated[index] = normalized;
         return updated;
       });
       queryClient.invalidateQueries({ queryKey: ['projects'] });

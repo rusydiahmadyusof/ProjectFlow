@@ -56,19 +56,19 @@ export const ProjectCompletion = () => {
           <span className="material-symbols-outlined text-[18px]">more_horiz</span>
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center relative min-h-0">
-        <div className="relative size-36 md:size-44">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+      <div className="flex-1 flex flex-row items-center gap-4 md:gap-6 min-h-0">
+        <div className="flex-shrink-0 relative size-20 md:size-24">
+          <svg className="w-full h-full" viewBox="0 0 36 36">
             <path
               className="text-gray-100 dark:text-gray-700"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 0 0 31.831 a 15.9155 15.9155 0 0 0 0 -31.831"
               fill="none"
               stroke="currentColor"
               strokeWidth="2.8"
             />
             <path
               className="text-primary transition-all duration-1000 ease-out"
-              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 0 0 31.831 a 15.9155 15.9155 0 0 0 0 -31.831"
               fill="none"
               stroke="currentColor"
               strokeDasharray={strokeDasharray}
@@ -77,21 +77,21 @@ export const ProjectCompletion = () => {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl md:text-4xl font-black text-[#0e121b] dark:text-white leading-none transition-all duration-1000 ease-out">
+            <span className="text-lg md:text-xl font-black text-[#0e121b] dark:text-white leading-none transition-all duration-1000 ease-out">
               {Math.round(animatedPercentage)}%
             </span>
-            <span className="text-xs text-[#506395] font-medium mt-1">Completed</span>
+            <span className="text-[10px] text-[#506395] font-medium mt-0.5">Completed</span>
           </div>
         </div>
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
-          <p className="text-[10px] text-[#506395] uppercase font-semibold tracking-wide">Active</p>
-          <p className="text-xl font-bold text-[#0e121b] dark:text-white mt-1 leading-none">{activeProjects}</p>
-        </div>
-        <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
-          <p className="text-[10px] text-[#506395] uppercase font-semibold tracking-wide">Delayed</p>
-          <p className="text-xl font-bold text-danger mt-1 leading-none">{delayedProjects}</p>
+        <div className="flex-1 flex flex-col gap-3 min-w-0">
+          <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <span className="text-xl font-bold text-[#0e121b] dark:text-white leading-none">{activeProjects}</span>
+            <span className="text-[10px] text-[#506395] uppercase font-semibold tracking-wide">Active</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <span className="text-xl font-bold text-danger leading-none">{delayedProjects}</span>
+            <span className="text-[10px] text-[#506395] uppercase font-semibold tracking-wide">Delayed</span>
+          </div>
         </div>
       </div>
     </div>

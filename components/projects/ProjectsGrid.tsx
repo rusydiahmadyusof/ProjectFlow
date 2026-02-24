@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Project } from '../types';
 import { ProjectCard } from './ProjectCard';
 import { useProjects, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
-import { CreateProjectModal, EditProjectModal, ConfirmationModal, AlertModal } from '../modals';
+import { CreateProjectModal, EditProjectModal, ConfirmationModal, AlertModal, AssignProjectMembersModal } from '../modals';
 import { useUser } from '@/hooks/useUser';
 import { canCreateProject, canArchiveProject, canDeleteProject } from '../utils/permissions';
 
@@ -29,6 +29,7 @@ export const ProjectsGrid = ({ searchQuery = '' }: ProjectsGridProps) => {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [archiveProject, setArchiveProject] = useState<Project | null>(null);
   const [deleteProjectState, setDeleteProjectState] = useState<Project | null>(null);
+  const [assignMembersProject, setAssignMembersProject] = useState<Project | null>(null);
   const [alertMessage, setAlertMessage] = useState<{ title: string; message: string; type: 'success' | 'error' } | null>(null);
   const router = useRouter();
 
@@ -309,7 +310,30 @@ export const ProjectsGrid = ({ searchQuery = '' }: ProjectsGridProps) => {
           </div>
         )}
       </div>
-      <CreateProjectModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+      <CreateProjectModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onProjectCreated={(project) => {
+          setIsCreateModalOpen(false);
+          setAssignMembersProject(project);
+        }}
+      />
+      {assignMembersProject && (
+        <AssignProjectMembersModal
+          isOpen={!!assignMembersProject}
+          projectId={assignMembersProject.id}
+          projectName={assignMembersProject.name}
+          initialLeaderId={assignMembersProject.projectLeaderId ?? null}
+          onClose={() => setAssignMembersProject(null)}
+          onComplete={() => {
+            setAlertMessage({
+              title: 'Members assigned',
+              message: `Team members have been assigned to "${assignMembersProject.name}".`,
+              type: 'success',
+            });
+          }}
+        />
+      )}
       <EditProjectModal
         isOpen={!!editingProject}
         project={editingProject}

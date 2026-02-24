@@ -219,20 +219,61 @@ export const generateProgressDataPoints = (
   return dataPoints;
 };
 
+function formatProjectDate(dateStr: string | undefined): string {
+  if (!dateStr || dateStr === '') return '';
+  if (typeof dateStr !== 'string') return '';
+  const trimmed = dateStr.trim();
+  if (!trimmed) return '';
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed;
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function getProjectDate(
+  project: Record<string, unknown> | undefined,
+  field: 'dueDate' | 'createdAt'
+): string | undefined {
+  if (!project) return undefined;
+  const camel = field === 'dueDate' ? 'dueDate' : 'createdAt';
+  const snake = field === 'dueDate' ? 'due_date' : 'created_at';
+  const value = (project[camel] ?? project[snake]) as string | undefined;
+  if (value == null || value === '') return undefined;
+  return String(value).trim();
+}
+
 /**
- * Calculate all project stats from tasks
+ * Calculate all project stats from tasks and optional project (DB) data
  */
 export const calculateProjectStats = (
   tasks: Task[],
-  project?: Project
+  project?: Project & { createdAt?: string; dueDate?: string } & Record<string, unknown>
 ): ProjectStats => {
-  const progress = calculateProjectProgress(tasks);
-  const startDate = getProjectStartDate(tasks) || project?.dueDate || '';
-  const endDate = getProjectEndDate(tasks) || project?.dueDate || '';
+  const taskProgress = calculateProjectProgress(tasks);
+  const taskStart = getProjectStartDate(tasks);
+  const taskEnd = getProjectEndDate(tasks);
+  const projectDue = getProjectDate(project, 'dueDate');
+  const projectCreated = getProjectDate(project, 'createdAt');
+  const projectEndFormatted = formatProjectDate(projectDue);
+  const projectStartFormatted = formatProjectDate(projectCreated);
+
+  const progress = tasks.length > 0 ? taskProgress : (project?.progress ?? 0);
+  // Start = project creation date; End = project due date (user-set when creating). Fall back to task-derived dates if project dates missing.
+  const startDate = projectStartFormatted || taskStart || '';
+  const endDate = projectEndFormatted || taskEnd || '';
   const teamMembers = getTeamMembersFromTasks(tasks);
   const projectLead = getProjectLead(tasks);
-  const progressDataPoints = generateProgressDataPoints(tasks, startDate, endDate);
-  
+  const progressDataPoints =
+    tasks.length > 0
+      ? generateProgressDataPoints(tasks, startDate || 'Oct 01', endDate || 'Nov 15')
+      : startDate && endDate
+        ? [
+            { date: startDate, progress: 0 },
+            { date: endDate, progress: progress },
+          ]
+        : endDate
+          ? [{ date: endDate, progress: 0 }, { date: endDate, progress: progress }]
+          : [];
+
   return {
     progress,
     startDate,

@@ -15,6 +15,8 @@ export interface Project {
   teamMembers: string[];
   isOverdue?: boolean;
   isArchived?: boolean;
+  projectLeaderId?: string | null;
+  createdAt?: string;
 }
 
 export interface Activity {

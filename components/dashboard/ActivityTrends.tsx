@@ -1,32 +1,83 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboard';
+
+const VIEW_WIDTH = 400;
+const VIEW_HEIGHT = 200;
+const PAD_X = 40;
+const CHART_WIDTH = VIEW_WIDTH - PAD_X * 2;
+const CHART_HEIGHT = VIEW_HEIGHT - 20;
 
 export const ActivityTrends = () => {
   const { data: stats, isLoading } = useDashboardStats();
-  const trendPercentage = stats?.trendPercentage || 18;
+  const trendPercentage = stats?.trendPercentage ?? 0;
+  const weeklyTrend = stats?.weeklyTrend;
+  const projects = stats?.projects ?? [];
   const [isAnimated, setIsAnimated] = useState(false);
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
+  const [filter, setFilter] = useState<string>('all');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  const labels = weeklyTrend?.labels ?? ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  const valuesAll = weeklyTrend?.all ?? [0, 0, 0, 0];
+  const byProject = weeklyTrend?.byProject ?? {};
+  const currentValues =
+    filter === 'all'
+      ? valuesAll
+      : (byProject[filter] ?? Array(labels.length).fill(0));
+
+  const maxValue = Math.max(1, ...currentValues);
+  const points = useMemo(() => {
+    const step = CHART_WIDTH / (currentValues.length - 1 || 1);
+    return currentValues.map((v, i) => ({
+      x: PAD_X + i * step,
+      y: 10 + CHART_HEIGHT - (v / maxValue) * CHART_HEIGHT,
+      value: v,
+    }));
+  }, [currentValues, maxValue]);
+
+  const pathD = useMemo(() => {
+    if (points.length === 0) return '';
+    const [first, ...rest] = points;
+    let d = `M ${first.x},${first.y}`;
+    rest.forEach((p) => {
+      d += ` L ${p.x},${p.y}`;
+    });
+    return d;
+  }, [points]);
+
+  const areaD = useMemo(() => {
+    if (pathD === '') return '';
+    return `${pathD} L ${points[points.length - 1].x},${VIEW_HEIGHT} L ${points[0].x},${VIEW_HEIGHT} Z`;
+  }, [pathD, points]);
 
   useEffect(() => {
     if (!isLoading) {
-      // Start animations after a short delay
-      setTimeout(() => {
-        setIsAnimated(true);
-      }, 200);
-      
-      // Animate percentage badge
-      setTimeout(() => {
-        setAnimatedPercentage(trendPercentage);
-      }, 400);
+      setTimeout(() => setIsAnimated(true), 200);
+      setTimeout(() => setAnimatedPercentage(trendPercentage), 400);
     }
   }, [isLoading, trendPercentage]);
 
-  // Calculate path length for animation (approximate)
-  const pathLength = 650; // Approximate length of the curve path
-  // For bottom-to-top reveal animation
-  const maskHeight = isAnimated ? 200 : 0;
+  const pathLength = 600;
+  const maskHeight = isAnimated ? VIEW_HEIGHT : 0;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = chartRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const fraction = x / rect.width;
+    const index = Math.max(0, Math.min(points.length - 1, Math.floor(fraction * points.length)));
+    setHoveredIndex(index);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(null);
+  };
+
+  const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
 
   if (isLoading) {
     return (
@@ -43,107 +94,116 @@ export const ActivityTrends = () => {
       </div>
     );
   }
+
   return (
     <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-4 gap-2">
         <div>
           <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Trends</h3>
           <p className="text-xs text-[#506395] mt-0.5">Task completion velocity</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-green-600 bg-green-50 dark:bg-green-900/20 text-[10px] px-1.5 py-0.5 rounded font-bold transition-all duration-1000 ease-out ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: '0.4s' }}>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="text-[10px] font-medium text-[#506395] dark:text-[#94a3b8] bg-gray-50 dark:bg-gray-800 border border-[#e8ebf3] dark:border-[#2d3748] rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+            aria-label="Filter by project"
+          >
+            <option value="all">All projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span
+            className={`text-green-600 bg-green-50 dark:bg-green-900/20 text-[10px] px-1.5 py-0.5 rounded font-bold transition-all duration-1000 ease-out ${isAnimated ? 'opacity-100' : 'opacity-0'}`}
+            style={{ transitionDelay: '0.4s' }}
+          >
             +{animatedPercentage}%
           </span>
         </div>
       </div>
       <div className="flex-1 w-full flex flex-col justify-end relative min-h-0">
-        <div className="relative h-[140px] md:h-[160px] w-full">
-          <div className={`absolute top-[25%] left-[65%] -translate-x-1/2 -translate-y-full mb-2 z-20 flex flex-col items-center transition-all duration-700 ease-out ${isAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: '1.2s' }}>
-            <div className="bg-[#0e121b] text-white text-xs py-1.5 px-3 rounded shadow-lg">
-              <span className="font-bold block">Week 4</span>
-              <span className="text-gray-300">42 Tasks</span>
+        <div
+          ref={chartRef}
+          className="relative h-[140px] md:h-[160px] w-full cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          {hoveredPoint !== null && (
+            <div
+              className="absolute z-20 flex flex-col items-center pointer-events-none transition-transform duration-75"
+              style={{
+                left: `${(hoveredPoint.x / VIEW_WIDTH) * 100}%`,
+                top: `${(hoveredPoint.y / VIEW_HEIGHT) * 100}%`,
+                transform: 'translate(-50%, -100%) translateY(-8px)',
+              }}
+            >
+              <div className="bg-[#0e121b] dark:bg-slate-800 text-white text-xs py-1.5 px-3 rounded shadow-lg border border-[#2d3748]">
+                <span className="font-bold block">{labels[hoveredIndex!]}</span>
+                <span className="text-gray-300">
+                  {hoveredPoint.value} Task{hoveredPoint.value !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#0e121b] dark:border-t-slate-800" />
             </div>
-            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#0e121b]"></div>
-          </div>
-          <div className={`absolute top-[25%] left-[65%] -translate-x-1/2 -translate-y-1/2 size-3 bg-white border-2 border-primary rounded-full shadow z-10 transition-all duration-500 ease-out ${isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} style={{ transitionDelay: '1s' }}></div>
+          )}
+          {hoveredPoint !== null && (
+            <div
+              className="absolute size-3 bg-white border-2 border-primary rounded-full shadow z-10 pointer-events-none"
+              style={{
+                left: `${(hoveredPoint.x / VIEW_WIDTH) * 100}%`,
+                top: `${(hoveredPoint.y / VIEW_HEIGHT) * 100}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          )}
           <svg
             className="w-full h-full overflow-visible"
             preserveAspectRatio="none"
-            viewBox="0 0 400 200"
+            viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             aria-label="Activity trends chart"
           >
-            <line stroke="#e8ebf3" strokeWidth="1" x1="0" x2="400" y1="200" y2="200" />
-            <line
-              stroke="#e8ebf3"
-              strokeDasharray="4 4"
-              strokeWidth="1"
-              x1="0"
-              x2="400"
-              y1="150"
-              y2="150"
-            />
-            <line
-              stroke="#e8ebf3"
-              strokeDasharray="4 4"
-              strokeWidth="1"
-              x1="0"
-              x2="400"
-              y1="100"
-              y2="100"
-            />
-            <line
-              stroke="#e8ebf3"
-              strokeDasharray="4 4"
-              strokeWidth="1"
-              x1="0"
-              x2="400"
-              y1="50"
-              y2="50"
-            />
+            <line stroke="#e8ebf3" strokeWidth="1" x1="0" x2={VIEW_WIDTH} y1={VIEW_HEIGHT} y2={VIEW_HEIGHT} />
+            <line stroke="#e8ebf3" strokeDasharray="4 4" strokeWidth="1" x1="0" x2={VIEW_WIDTH} y1="150" y2="150" />
+            <line stroke="#e8ebf3" strokeDasharray="4 4" strokeWidth="1" x1="0" x2={VIEW_WIDTH} y1="100" y2="100" />
+            <line stroke="#e8ebf3" strokeDasharray="4 4" strokeWidth="1" x1="0" x2={VIEW_WIDTH} y1="50" y2="50" />
             <defs>
-              <linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1">
+              <linearGradient id="activityAreaGradient" x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#1d4fd7" stopOpacity="0.2" />
                 <stop offset="100%" stopColor="#1d4fd7" stopOpacity="0" />
               </linearGradient>
-              <clipPath id="chartClip">
+              <clipPath id="activityChartClip">
                 <rect
                   x="0"
-                  y={200 - maskHeight}
-                  width="400"
+                  y={VIEW_HEIGHT - maskHeight}
+                  width={VIEW_WIDTH}
                   height={maskHeight}
-                  style={{
-                    transition: 'all 1.2s ease-out',
-                    transitionDelay: '0.2s',
-                  }}
+                  style={{ transition: 'all 1.2s ease-out', transitionDelay: '0.2s' }}
                 />
               </clipPath>
             </defs>
-            <g clipPath="url(#chartClip)">
+            <g clipPath="url(#activityChartClip)">
+              <path d={areaD} fill="url(#activityAreaGradient)" />
               <path
-                d="M0,160 C50,160 80,120 120,110 C180,95 220,130 260,50 C300,-10 350,80 400,60 L400,200 L0,200 Z"
-                fill="url(#areaGradient)"
-              />
-              <path
-                d="M0,160 C50,160 80,120 120,110 C180,95 220,130 260,50 C300,-10 350,80 400,60"
+                d={pathD}
                 fill="none"
                 stroke="#1d4fd7"
                 strokeLinecap="round"
+                strokeLinejoin="round"
                 strokeWidth="3"
                 strokeDasharray={pathLength}
                 strokeDashoffset={isAnimated ? 0 : pathLength}
-                style={{
-                  transition: 'stroke-dashoffset 1s ease-out',
-                  transitionDelay: '0.2s',
-                }}
+                style={{ transition: 'stroke-dashoffset 1s ease-out', transitionDelay: '0.2s' }}
               />
             </g>
           </svg>
         </div>
         <div className="flex justify-between mt-3 text-[10px] font-medium text-[#506395] uppercase tracking-wide">
-          <span>Week 1</span>
-          <span>Week 2</span>
-          <span>Week 3</span>
-          <span>Week 4</span>
+          {labels.map((l) => (
+            <span key={l}>{l}</span>
+          ))}
         </div>
       </div>
     </div>

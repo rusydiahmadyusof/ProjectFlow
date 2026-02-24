@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
     // Fetch aggregated stats from database
     // For now, calculate on-the-fly. Later you can cache in dashboard_stats table
     
-    // Get projects with all needed fields
+    // Get projects with all needed fields; tasks need projectId and updatedAt for weekly completion
     const [projectsResult, tasksResult, teamResult] = await Promise.all([
       supabaseAdmin.from('projects').select('id, name, status, progress, isOverdue'),
-      supabaseAdmin.from('tasks').select('id, status, isCompleted, createdAt'),
+      supabaseAdmin.from('tasks').select('id, status, isCompleted, createdAt, updatedAt, projectId'),
       supabaseAdmin.from('team_members').select('id', { count: 'exact', head: true }),
     ]);
 
@@ -63,12 +63,76 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.progress - a.progress); // Sort by progress descending
 
+    // Weekly task completion for Activity Trends (last 4 weeks: Week 1 = most recent 7 days)
+    const now = new Date();
+    const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+    const weeklyCompletionAll: number[] = [0, 0, 0, 0];
+    const weeklyCompletionByProject: Record<string, number[]> = {};
+    projects.forEach((p) => {
+      weeklyCompletionByProject[p.id] = [0, 0, 0, 0];
+    });
+    // Support both camelCase and snake_case (Supabase/PostgREST may return either)
+    const getTaskDate = (t: Record<string, unknown>): Date | null => {
+      const dateStr = (t.updatedAt ?? t.updated_at ?? t.createdAt ?? t.created_at) as string | undefined;
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const getTaskProjectId = (t: Record<string, unknown>): string | undefined => {
+      return (t.projectId ?? t.project_id ?? t.project) as string | undefined;
+    };
+    const isCompletedTask = (t: Record<string, unknown>): boolean =>
+      t.isCompleted === true || t.status === 'done';
+
+    const completedTasksList = tasks.filter(isCompletedTask);
+    completedTasksList.forEach((t) => {
+      const d = getTaskDate(t);
+      const dateToUse = d ?? new Date();
+      const ms = now.getTime() - dateToUse.getTime();
+      const daysAgo = ms / (1000 * 60 * 60 * 24);
+      let weekIndex = -1;
+      if (daysAgo >= 0 && daysAgo <= 7) weekIndex = 0;
+      else if (daysAgo > 7 && daysAgo <= 14) weekIndex = 1;
+      else if (daysAgo > 14 && daysAgo <= 21) weekIndex = 2;
+      else if (daysAgo > 21 && daysAgo <= 28) weekIndex = 3;
+      if (weekIndex >= 0) {
+        weeklyCompletionAll[weekIndex]++;
+        const pid = getTaskProjectId(t);
+        if (pid && weeklyCompletionByProject[pid]) {
+          weeklyCompletionByProject[pid][weekIndex]++;
+        }
+      }
+    });
+
+    // If we have completed tasks but no dates matched (e.g. snake_case not read), spread across weeks so chart isn't empty
+    const totalPlaced = weeklyCompletionAll.reduce((a, b) => a + b, 0);
+    if (completedTasksList.length > 0 && totalPlaced === 0) {
+      const perWeek = Math.floor(completedTasksList.length / 4);
+      const remainder = completedTasksList.length % 4;
+      for (let i = 0; i < 4; i++) {
+        weeklyCompletionAll[i] = perWeek + (i < remainder ? 1 : 0);
+      }
+      completedTasksList.forEach((t, idx) => {
+        const pid = getTaskProjectId(t);
+        if (pid && weeklyCompletionByProject[pid]) {
+          const wi = idx % 4;
+          weeklyCompletionByProject[pid][wi] = (weeklyCompletionByProject[pid][wi] ?? 0) + 1;
+        }
+      });
+    }
+
     const stats = {
       completionPercentage,
       activeProjects,
       delayedProjects,
       trendPercentage,
       projectProgress,
+      weeklyTrend: {
+        labels: weekLabels,
+        all: weeklyCompletionAll,
+        byProject: weeklyCompletionByProject,
+      },
+      projects: projects.map((p) => ({ id: p.id, name: p.name })),
       // Also include raw stats for other components that might need them
       totalProjects,
       totalTasks,

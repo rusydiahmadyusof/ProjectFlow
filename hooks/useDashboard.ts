@@ -9,6 +9,12 @@ interface DashboardStats {
   delayedProjects: number;
   trendPercentage: number;
   projectProgress: Array<{ name: string; progress: number }>;
+  weeklyTrend?: {
+    labels: string[];
+    all: number[];
+    byProject: Record<string, number[]>;
+  };
+  projects?: Array<{ id: string; name: string }>;
 }
 
 const fetchDashboardStats = async (): Promise<DashboardStats> => {

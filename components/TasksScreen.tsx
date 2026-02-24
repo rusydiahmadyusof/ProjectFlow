@@ -9,6 +9,8 @@ import { useTasks } from '@/hooks/useTasks';
 import { AddTaskModal, TaskDetailsModal } from './modals';
 import { useProjects } from '@/hooks/useProjects';
 import { useUser } from '@/hooks/useUser';
+import { useTeam } from '@/hooks/useTeam';
+import { useProjectMembers } from '@/hooks/useProjectMembers';
 import { canCreateTask } from './utils/permissions';
 
 const TasksScreenContent = () => {
@@ -24,6 +26,8 @@ const TasksScreenContent = () => {
   } = useTasks(projectId ? { projectId } : undefined);
   const { data: projects = [] } = useProjects();
   const { data: user } = useUser();
+  const { data: teamMembers = [] } = useTeam();
+  const { data: projectMembers = [] } = useProjectMembers(projectId ?? null);
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [priorityFilter, setPriorityFilter] = useState('All Priorities');
   const [sortBy, setSortBy] = useState('Due Date');
@@ -120,11 +124,19 @@ const TasksScreenContent = () => {
         <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-8">
           {selectedProject && (
             <ProjectHeader
-              teamMembers={selectedProject.teamMembers.slice(0, 4)}
+              teamMembers={projectMembers.map((m) => m.avatar)}
               projectName={selectedProject.name}
               progress={selectedProject.progress}
               tasks={tasks}
               project={selectedProject}
+              projectLead={
+                selectedProject.projectLeaderId
+                  ? (() => {
+                      const leader = teamMembers.find((m) => m.id === selectedProject.projectLeaderId);
+                      return leader ? { name: leader.name, avatar: leader.avatar } : undefined;
+                    })()
+                  : undefined
+              }
             />
           )}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">

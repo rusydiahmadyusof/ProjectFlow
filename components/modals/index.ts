@@ -1,4 +1,5 @@
 export { CreateProjectModal } from './CreateProjectModal';
+export { AssignProjectMembersModal } from './AssignProjectMembersModal';
 export { AddTaskModal } from './AddTaskModal';
 export { InviteMemberModal } from './InviteMemberModal';
 export { TaskDetailsModal } from './TaskDetailsModal';

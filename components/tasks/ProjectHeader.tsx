@@ -34,23 +34,34 @@ export const ProjectHeader = ({
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
 
-  // Calculate stats from tasks if available
-  const stats = useMemo(() => {
-    if (tasks.length > 0) {
-      return calculateProjectStats(tasks, project);
-    }
-    return null;
-  }, [tasks, project]);
+  // Normalize project dates (Supabase may return created_at/due_date or Date objects)
+  const projectWithDates = useMemo(() => {
+    if (!project) return project;
+    const p = project as Project & Record<string, unknown>;
+    const toDateStr = (v: unknown): string => {
+      if (v == null || v === '') return '';
+      if (typeof v === 'string') return v.trim();
+      if (typeof v === 'object' && 'toISOString' in (v as Date)) return (v as Date).toISOString();
+      return String(v);
+    };
+    return {
+      ...project,
+      createdAt: toDateStr(project.createdAt ?? p?.created_at ?? ''),
+      dueDate: toDateStr(project.dueDate ?? p?.due_date ?? ''),
+    };
+  }, [project]);
 
-  // Use calculated stats or fallback to props
+  // Calculate stats from tasks and project (always run so we get project dates even with no tasks)
+  const stats = useMemo(
+    () => calculateProjectStats(tasks, projectWithDates),
+    [tasks, projectWithDates]
+  );
+
+  // Use calculated stats or props; no hardcoded fallbacks so we show actual data or clear empty state
   const progress = stats?.progress ?? propProgress ?? 0;
-  const startDate = stats?.startDate || propStartDate || 'Oct 01';
-  const endDate = stats?.endDate || propEndDate || 'Nov 15';
-  const projectLead = stats?.projectLead || propProjectLead || {
-    name: 'Sarah M.',
-    avatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuD3tgryqD_nkGvBmRRpnnVVTn1NcPdMEOn291SW6BJZU7klcHoXVECeBIvHkSxjPzD4VhdAayVJWDAnEAhy5r_ccpllgHRSkslZgCktVwmP8mtuG1uyetrCuUsyLpqeFK0CVRKig1i7wz42BHxj_7HZMogtHjbyCQ_jAYw5B-NMDCQy3G6Wlap2ZxjTft_ZNn5fwlLzazdToaIuXfubvtpDWhLeqLox0o48Xl13mUQ9PgMaXfj5jz5-A9eNeUqj9Nz0A',
-  };
+  const startDate = stats?.startDate || propStartDate || '';
+  const endDate = stats?.endDate || propEndDate || '';
+  const projectLead = stats?.projectLead || propProjectLead || null;
   const teamMembers = (stats?.teamMembers && stats.teamMembers.length > 0) ? stats.teamMembers : propTeamMembers;
   const progressDataPoints = stats?.progressDataPoints || [];
   const projectDescription = description || project?.client || 'Comprehensive project management and task tracking.';
@@ -58,18 +69,17 @@ export const ProjectHeader = ({
   // Generate SVG path from progress data points
   const generatePath = useMemo(() => {
     if (progressDataPoints.length < 2) {
-      // Default path if no data points
+      const start = startDate || '—';
+      const end = endDate || '—';
+      const y = progress > 0 ? 100 - (progress / 100) * 80 - 10 : 80;
       return {
-        areaPath: 'M0,80 Q50,70 100,60 T200,50 T300,30 T400,20 L400,100 L0,100 Z',
-        linePath: 'M0,80 Q50,70 100,60 T200,50 T300,30 T400,20',
+        areaPath: `M0,80 L400,80 L400,${y} L0,80 Z`,
+        linePath: `M0,80 L400,${y}`,
         circles: [
           { cx: 0, cy: 80 },
-          { cx: 100, cy: 60 },
-          { cx: 200, cy: 50 },
-          { cx: 300, cy: 30 },
-          { cx: 400, cy: 20 },
+          { cx: 400, cy: y },
         ],
-        dates: [startDate, 'Oct 15', 'Oct 30', endDate],
+        dates: [start, end],
       };
     }
 
@@ -109,7 +119,7 @@ export const ProjectHeader = ({
     const dates = progressDataPoints.map((p) => p.date);
 
     return { areaPath, linePath, circles, dates };
-  }, [progressDataPoints, startDate, endDate]);
+  }, [progressDataPoints, startDate, endDate, progress]);
 
   useEffect(() => {
     // Start animations after component mounts
@@ -233,23 +243,39 @@ export const ProjectHeader = ({
                   Project Lead
                 </p>
                 <div className="flex items-center gap-2">
-                  <div
-                    className="size-6 rounded-full bg-cover bg-center ring-1 ring-border-light"
-                    style={{ backgroundImage: `url('${projectLead.avatar}')` }}
-                    role="img"
-                    aria-label={`${projectLead.name} avatar`}
-                  ></div>
-                  <span className="text-sm font-medium text-text-main dark:text-white">
-                    {projectLead.name}
-                  </span>
+                  {projectLead ? (
+                    <>
+                      {projectLead.avatar ? (
+                        <div
+                          className="size-6 rounded-full bg-cover bg-center ring-1 ring-border-light flex-shrink-0"
+                          style={{ backgroundImage: `url('${projectLead.avatar}')` }}
+                          role="img"
+                          aria-label={`${projectLead.name} avatar`}
+                        />
+                      ) : (
+                        <div className="size-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0" aria-hidden>
+                          {projectLead.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-text-main dark:text-white truncate">
+                        {projectLead.name}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-text-secondary dark:text-gray-400">Not assigned</span>
+                  )}
                 </div>
               </div>
-              <div>
+              <div className="col-span-2 min-w-0">
                 <p className="text-[11px] font-bold text-text-secondary uppercase tracking-tight mb-1">
                   Start / End
                 </p>
                 <p className="text-sm font-medium text-text-main dark:text-white">
-                  {startDate} - {endDate}
+                  {startDate && endDate
+                    ? `${startDate} – ${endDate}`
+                    : startDate || endDate
+                      ? `${startDate || '—'} – ${endDate || '—'}`
+                      : '—'}
                 </p>
               </div>
               <div className="col-span-2">
@@ -261,14 +287,14 @@ export const ProjectHeader = ({
                     {teamMembers.slice(0, 3).map((avatar, index) => (
                       <div
                         key={index}
-                        className="size-7 rounded-full border-2 border-white dark:border-surface-dark bg-cover bg-center"
-                        style={{ backgroundImage: `url('${avatar}')` }}
+                        className="size-7 rounded-full border-2 border-white dark:border-surface-dark bg-cover bg-center flex-shrink-0"
+                        style={{ backgroundImage: avatar ? `url('${avatar}')` : undefined }}
                         role="img"
                         aria-label={`Team member ${index + 1}`}
-                      ></div>
+                      />
                     ))}
                     {teamMembers.length > 3 && (
-                      <div className="size-7 rounded-full border-2 border-white dark:border-surface-dark bg-primary flex items-center justify-center text-[10px] text-white font-bold">
+                      <div className="size-7 rounded-full border-2 border-white dark:border-surface-dark bg-primary flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0">
                         +{teamMembers.length - 3}
                       </div>
                     )}

@@ -1,31 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCreateProject } from '@/hooks/useProjects';
-import { validateProjectName } from '@/lib/validation';
-import { sanitizeForStorage } from '@/lib/security';
+import type { Project } from '@/components/types';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onProjectCreated?: (project: Project) => void;
 }
 
-export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps) => {
+export const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }: CreateProjectModalProps) => {
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [errors, setErrors] = useState<{ name?: string; client?: string }>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const createProject = useCreateProject();
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSubmitError(null);
+      setErrors({});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    setErrors({});
     try {
-      await createProject.mutateAsync({
-        name,
-        client,
-        dueDate,
+      const created = await createProject.mutateAsync({
+        name: name.trim(),
+        client: client.trim(),
+        dueDate: dueDate.trim(),
         progress: 0,
         status: 'on-track',
         taskCount: 0,
@@ -35,8 +45,10 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
       setClient('');
       setDueDate('');
       onClose();
+      onProjectCreated?.(created);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      const message = error instanceof Error ? error.message : 'Failed to create project. Please try again.';
+      setSubmitError(message);
     }
   };
 
@@ -57,6 +69,11 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
           </button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {submitError && (
+            <div className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm" role="alert">
+              {submitError}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-[#0e121b] dark:text-white mb-2">
               Project Name *
@@ -66,7 +83,8 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                if (errors.name) setErrors({ ...errors, name: undefined });
+                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                if (submitError) setSubmitError(null);
               }}
               required
               maxLength={100}
@@ -88,7 +106,10 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
             <input
               type="text"
               value={client}
-              onChange={(e) => setClient(e.target.value)}
+              onChange={(e) => {
+                setClient(e.target.value);
+                if (submitError) setSubmitError(null);
+              }}
               className="w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
               placeholder="Enter client name"
             />
@@ -100,7 +121,10 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
             <input
               type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={(e) => {
+                setDueDate(e.target.value);
+                if (submitError) setSubmitError(null);
+              }}
               className="w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
             />
           </div>

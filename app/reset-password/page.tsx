@@ -1,34 +1,79 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { validatePassword } from '@/lib/validation';
 
+const RECOVERY_WAIT_MS = 4000;
+
 function ResetPasswordContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [status, setStatus] = useState<'verifying' | 'ready' | 'invalid'>('verifying');
   const [errors, setErrors] = useState<{
     password?: string;
     confirmPassword?: string;
   }>({});
+  const recoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Check if we have a valid session (user clicked reset link)
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    const hasRecoveryHash = () => {
+      if (typeof window === 'undefined') return false;
+      const hash = window.location.hash || '';
+      return hash.includes('type=recovery') || hash.includes('access_token=');
+    };
+
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/forgot-password');
+      if (session) {
+        setStatus('ready');
+        return;
+      }
+      if (hasRecoveryHash()) {
+        // Wait for Supabase to parse the URL hash and set the session
+        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session) {
+            setStatus('ready');
+            if (recoveryTimeoutRef.current) {
+              clearTimeout(recoveryTimeoutRef.current);
+              recoveryTimeoutRef.current = null;
+            }
+          }
+        });
+        subscription = sub;
+        recoveryTimeoutRef.current = setTimeout(() => {
+          recoveryTimeoutRef.current = null;
+          setStatus((s) => (s === 'verifying' ? 'invalid' : s));
+        }, RECOVERY_WAIT_MS);
+        return;
+      }
+      setStatus('invalid');
+    };
+
+    checkSession();
+
+    return () => {
+      subscription?.unsubscribe();
+      if (recoveryTimeoutRef.current) {
+        clearTimeout(recoveryTimeoutRef.current);
+        recoveryTimeoutRef.current = null;
       }
     };
-    checkSession();
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    if (status === 'invalid') {
+      router.push('/forgot-password');
+    }
+  }, [status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +132,42 @@ function ResetPasswordContent() {
                 refresh
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'verifying' || status === 'invalid') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
+              <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[32px] animate-pulse">
+                {status === 'verifying' ? 'link' : 'schedule'}
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              {status === 'verifying' ? 'Verifying reset link...' : 'Redirecting...'}
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
+              {status === 'verifying'
+                ? 'Please wait while we verify your password reset link.'
+                : 'Taking you back to request a new link.'}
+            </p>
+            {status === 'verifying' && (
+              <div className="flex justify-center">
+                <span className="material-symbols-outlined animate-spin text-primary text-[24px]">
+                  refresh
+                </span>
+              </div>
+            )}
+            {status === 'invalid' && (
+              <Link href="/forgot-password" className="text-primary hover:underline text-sm font-medium">
+                Go to Forgot Password
+              </Link>
+            )}
           </div>
         </div>
       </div>

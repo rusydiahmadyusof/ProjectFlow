@@ -94,8 +94,16 @@ export const useAuth = () => {
 
   const resetPassword = async (email: string) => {
     try {
+      // Use NEXT_PUBLIC_APP_URL so reset emails use the correct port (e.g. 3001). Supabase uses this for the link.
+      const baseUrl =
+        typeof window !== 'undefined' && process.env.NEXT_PUBLIC_APP_URL
+          ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+          : typeof window !== 'undefined'
+            ? window.location.origin
+            : '';
+      const redirectTo = baseUrl ? `${baseUrl}/reset-password` : '/reset-password';
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo,
       });
 
       if (error) throw error;

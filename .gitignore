@@ -87,6 +87,7 @@ Desktop.ini
 
 # project documentation (internal tracking)
 project.md
+docs/
 
 # Security: Never commit these
 *.secret

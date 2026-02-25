@@ -35,7 +35,7 @@ const fetchProjects = async (): Promise<Project[]> => {
       return { data, error };
     },
     'fetching projects'
-  ) as Promise<Project[]>;
+  );
   const rows = Array.isArray(result) ? result : [];
   return rows.map((row) => normalizeProject(row as Record<string, unknown>));
 };
@@ -75,7 +75,7 @@ export const useCreateProject = () => {
           return { data, error };
         },
         'creating project'
-      ) as Promise<Project>;
+      );
     },
     onMutate: async (newProject) => {
       await queryClient.cancelQueries({ queryKey: ['projects'] });
@@ -138,7 +138,7 @@ export const useUpdateProject = () => {
           return { data, error };
         },
         `updating project ${id}`
-      ) as Promise<Project>;
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });

@@ -3,6 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { User } from '@/components/types';
 import { requireAuth } from '@/lib/apiAuth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Require authentication

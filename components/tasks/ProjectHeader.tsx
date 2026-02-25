@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Task, Project } from '@/components/types';
 import { calculateProjectStats } from '@/lib/projectStats';
+import { getTaskStatusConfig } from '../utils/statusConfig';
 
 interface ProjectHeaderProps {
   projectName?: string;
@@ -66,7 +67,25 @@ export const ProjectHeader = ({
   const progressDataPoints = stats?.progressDataPoints || [];
   const projectDescription = description || project?.client || 'Comprehensive project management and task tracking.';
 
-  // Generate SVG path from progress data points
+  const statusCounts = useMemo(() => {
+    const counts: Partial<Record<Task['status'], number>> = {};
+    tasks.forEach((task) => {
+      counts[task.status] = (counts[task.status] ?? 0) + 1;
+    });
+    return counts;
+  }, [tasks]);
+
+  const statusColors: Record<Task['status'], string> = {
+    'to-do': '#9CA3AF',
+    'in-progress': '#3B82F6',
+    done: '#10B981',
+    overdue: '#F59E0B',
+    review: '#F97316',
+    drafting: '#6B7280',
+    pending: '#A855F7',
+  };
+
+  // Generate SVG path from overall progress data points
   const generatePath = useMemo(() => {
     if (progressDataPoints.length < 2) {
       const start = startDate || '—';
@@ -120,6 +139,8 @@ export const ProjectHeader = ({
 
     return { areaPath, linePath, circles, dates };
   }, [progressDataPoints, startDate, endDate, progress]);
+
+  // No per-point status tooltip: keep header graph clean
 
   useEffect(() => {
     // Start animations after component mounts
@@ -206,7 +227,9 @@ export const ProjectHeader = ({
                   cy={circle.cy}
                   fill="#1d4fd7"
                   r="3"
-                  className={`transition-all duration-300 ${isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`}
+                  className={`transition-all duration-300 ${
+                    isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+                  }`}
                   style={{ transitionDelay: `${0.4 + index * 0.1}s` }}
                 ></circle>
               ))}
@@ -217,6 +240,26 @@ export const ProjectHeader = ({
               ))}
             </div>
           </div>
+          {tasks.length > 0 && (
+            <div className="flex flex-wrap gap-3 text-[11px] text-text-secondary mb-1">
+              {(['to-do', 'in-progress', 'done', 'overdue', 'review', 'drafting', 'pending'] as Task['status'][])
+                .map((statusKey) => {
+                  const count = statusCounts[statusKey] ?? 0;
+                  if (!count) return null;
+                  const config = getTaskStatusConfig(statusKey);
+                  return (
+                    <div key={statusKey} className="flex items-center gap-1">
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{ backgroundColor: statusColors[statusKey] }}
+                      ></span>
+                      <span>{config.label}</span>
+                      <span className="opacity-70">({count})</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
           <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-1000 ease-out"

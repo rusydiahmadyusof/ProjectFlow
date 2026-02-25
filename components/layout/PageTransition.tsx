@@ -37,7 +37,7 @@ export const PageTransition = ({ children }: PageTransitionProps) => {
       animate="animate"
       variants={pageVariants}
       transition={pageTransition}
-      className="w-full h-full"
+      className="w-full h-full min-w-0 overflow-hidden"
     >
       {children}
     </motion.div>

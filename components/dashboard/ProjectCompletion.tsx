@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboard';
+import { Card } from '@/components/ui';
 
 export const ProjectCompletion = () => {
   const { data: stats, isLoading } = useDashboardStats();
-  const completionPercentage = stats?.completionPercentage || 78;
-  const activeProjects = stats?.activeProjects || 12;
-  const delayedProjects = stats?.delayedProjects || 3;
+  const completionPercentage = stats != null ? stats.completionPercentage : 78;
+  const activeProjects = stats != null ? stats.activeProjects : 12;
+  const delayedProjects = stats != null ? stats.delayedProjects : 3;
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export const ProjectCompletion = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-4 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
+      <Card className="h-full flex flex-col">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">
@@ -33,15 +34,15 @@ export const ProjectCompletion = () => {
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[#506395] text-sm">Loading...</p>
         </div>
-      </div>
+      </Card>
     );
   }
   const circumference = 2 * Math.PI * 15.9155;
   const strokeDasharray = `${(animatedPercentage / 100) * circumference}, ${circumference}`;
 
   return (
-    <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-      <div className="flex justify-between items-start mb-4">
+    <Card className="h-full flex flex-col">
+      <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">
             Overall Project Completion
@@ -94,6 +95,6 @@ export const ProjectCompletion = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

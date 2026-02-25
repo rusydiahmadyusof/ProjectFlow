@@ -27,7 +27,7 @@ export const AppSidebar = () => {
 
   return (
     <div className="hidden md:flex flex-col w-64 bg-white dark:bg-[#1a202c] border-r border-[#e8ebf3] dark:border-[#2d3748]">
-      <Link href="/" className="p-6 pb-2 flex flex-col gap-6">
+      <Link href="/" className="p-4 pb-2 flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="bg-primary aspect-square rounded-full size-10 flex items-center justify-center text-white font-bold text-xl">
             P
@@ -38,7 +38,7 @@ export const AppSidebar = () => {
           </div>
         </div>
       </Link>
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <p className="px-3 text-xs font-semibold text-[#506395] uppercase tracking-wider mb-2">
             Main

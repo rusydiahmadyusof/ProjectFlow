@@ -13,7 +13,7 @@
  * - Updates records with matching IDs (1-30)
  * - Does NOT delete existing data
  * - Preserves records not in mock data
- * - See supabase/DATA_SAFETY.md for details
+ * - See supabase/README.md for data safety notes
  * 
  * Usage:
  * 1. Make sure your .env.local file is configured with Supabase credentials

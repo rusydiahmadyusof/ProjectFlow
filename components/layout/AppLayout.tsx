@@ -30,7 +30,7 @@ export const AppLayout = ({
   return (
     <div className="relative flex h-screen w-full overflow-hidden">
       <AppSidebar />
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark">
+      <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0 bg-background-light dark:bg-background-dark">
         <AppHeader
           title={headerTitle}
           user={headerUser}
@@ -40,7 +40,7 @@ export const AppLayout = ({
           onSearchChange={onSearchChange}
           actions={headerActions}
         />
-        <main className="flex-1 overflow-y-auto p-6 relative min-h-0">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-5 relative min-h-0">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

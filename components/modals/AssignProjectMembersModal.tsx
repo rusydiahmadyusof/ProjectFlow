@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useTeam } from '@/hooks/useTeam';
 import { useUpdateProject } from '@/hooks/useProjects';
+import type { Project } from '@/components/types';
 
 interface AssignProjectMembersModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export const AssignProjectMembersModal = ({
 }: AssignProjectMembersModalProps) => {
   const { data: teamMembers = [], isLoading: teamLoading } = useTeam();
   const updateProject = useUpdateProject();
+  const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [leaderId, setLeaderId] = useState<string | null>(null);
   const [existingMemberIds, setExistingMemberIds] = useState<Set<string>>(new Set());
@@ -99,11 +102,28 @@ export const AssignProjectMembersModal = ({
       }
 
       const newLeaderId = leaderId && selectedIds.has(leaderId) ? leaderId : null;
+      const selectedMembers = teamMembers.filter((m) => selectedIds.has(m.id));
+      const memberAvatars = selectedMembers.map((m) => m.avatar || '');
+
       try {
         await updateProject.mutateAsync({
           id: projectId,
           projectLeaderId: newLeaderId,
+          teamMembers: memberAvatars,
         });
+
+        // Optimistically update cached projects so cards show members immediately
+        queryClient.setQueryData<Project[]>(['projects'], (old = []) =>
+          old.map((project) =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  projectLeaderId: newLeaderId,
+                  teamMembers: memberAvatars,
+                }
+              : project
+          )
+        );
       } catch {
         // Ignore if projectLeaderId column is not yet added (migration 10_add_project_leader.sql)
       }

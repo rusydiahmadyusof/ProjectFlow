@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Notification, ActivityFeedItem } from './types';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { useTasks } from '@/hooks/useTasks';
 import { useProjects } from '@/hooks/useProjects';
@@ -243,8 +243,8 @@ export const NotificationScreen = () => {
         searchPlaceholder="Search notifications..."
         onSearchChange={setSearchQuery}
       >
-      <div className="max-w-7xl mx-auto flex flex-col h-full">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <PageContent>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Notifications Center</h2>
             <p className="text-slate-500 dark:text-slate-400 mt-1">Stay updated with your team's activity and project alerts.</p>
@@ -258,7 +258,7 @@ export const NotificationScreen = () => {
             Mark all as read
           </button>
         </div>
-        <div className="border-b border-slate-200 dark:border-slate-800 mb-8">
+        <div className="border-b border-slate-200 dark:border-slate-800">
           <nav className="flex gap-8">
                 <button className={`pb-3 border-b-2 ${activeTab === 'all' ? 'border-primary text-primary font-semibold' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium'} text-sm px-1`} onClick={() => setActiveTab('all')}>
                   All Activity
@@ -272,7 +272,7 @@ export const NotificationScreen = () => {
             </button>
           </nav>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start pb-10">
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Notifications</h3>
@@ -416,7 +416,7 @@ export const NotificationScreen = () => {
             </div>
           </div>
         </div>
-      </div>
+      </PageContent>
       </AppLayout>
     </>
   );

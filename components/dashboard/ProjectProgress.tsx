@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboard';
+import { Card } from '@/components/ui';
 
 export const ProjectProgress = () => {
   const { data: stats, isLoading, error } = useDashboardStats();
@@ -31,8 +32,8 @@ export const ProjectProgress = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
             <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
@@ -41,14 +42,14 @@ export const ProjectProgress = () => {
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[#506395] text-sm">Loading...</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
             <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
@@ -72,7 +73,7 @@ export const ProjectProgress = () => {
             Please refresh the page
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -82,8 +83,8 @@ export const ProjectProgress = () => {
   // Show empty state if no projects
   if (displayProjects.length === 0) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
             <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
@@ -107,13 +108,13 @@ export const ProjectProgress = () => {
             Create a project to see progress here
           </p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-      <div className="flex justify-between items-start mb-4">
+    <Card className="h-full flex flex-col">
+      <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Project Progress</h3>
           <p className="text-xs text-[#506395] mt-0.5">Active projects status</p>
@@ -147,6 +148,6 @@ export const ProjectProgress = () => {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 };

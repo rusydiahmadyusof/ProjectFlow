@@ -27,39 +27,42 @@ export const QuickStats = () => {
     
     const dueToday = tasks.filter((t) => {
       if (t.status === 'done' || t.isCompleted || !t.dueDate) return false;
-      
-      // Parse various date formats
+
       const dueDateStr = t.dueDate.trim();
-      
+
+      // ISO format: YYYY-MM-DD (from DB / date inputs)
+      if (/^\d{4}-\d{2}-\d{2}/.test(dueDateStr)) {
+        const d = new Date(dueDateStr);
+        if (!Number.isNaN(d.getTime())) {
+          return (
+            d.getDate() === todayDay &&
+            d.getMonth() === today.getMonth() &&
+            d.getFullYear() === todayYear
+          );
+        }
+      }
+
       // Format: "Mon DD, YYYY" or "Mon DD"
       if (dueDateStr.includes(',')) {
         const parts = dueDateStr.split(',');
         const datePart = parts[0].trim();
         const yearPart = parts[1]?.trim();
-        
+
         if (datePart.startsWith(todayMonth)) {
           const dayMatch = datePart.match(/\d+/);
           if (dayMatch) {
             const day = parseInt(dayMatch[0]);
             if (day === todayDay) {
-              // If year is specified, check it matches
-              if (yearPart) {
-                return parseInt(yearPart) === todayYear;
-              }
-              return true; // No year specified, assume current year
+              if (yearPart) return parseInt(yearPart) === todayYear;
+              return true;
             }
           }
         }
-      } else {
-        // Format: "Mon DD"
-        if (dueDateStr.startsWith(todayMonth)) {
-          const dayMatch = dueDateStr.match(/\d+/);
-          if (dayMatch && parseInt(dayMatch[0]) === todayDay) {
-            return true;
-          }
-        }
+      } else if (dueDateStr.startsWith(todayMonth)) {
+        const dayMatch = dueDateStr.match(/\d+/);
+        if (dayMatch && parseInt(dayMatch[0]) === todayDay) return true;
       }
-      
+
       return false;
     }).length;
     
@@ -128,14 +131,14 @@ export const QuickStats = () => {
       animateNumber(setAnimatedTotalProjects, stats.totalProjects, 300);
       animateNumber(setAnimatedDueToday, stats.dueToday, 400);
       
-      // Animate progress bar (calculate offset based on overall progress)
-      // Progress bar: 238 total circumference, offset = 238 - (progress% * 238 / 100)
-      const progressOffset = 238 - (stats.overallProgress * 238 / 100);
+      // Animate progress: stroke length from 12 o'clock anticlockwise (circumference = 2*π*38 ≈ 238)
+      const circumference = 238;
+      const strokeLength = (stats.overallProgress / 100) * circumference;
       setTimeout(() => {
-        setAnimatedProgress(progressOffset);
+        setAnimatedProgress(strokeLength);
       }, 500);
     }
-  }, [projectsLoading, tasksLoading, stats.totalProjects, stats.dueToday]);
+  }, [projectsLoading, tasksLoading, stats.totalProjects, stats.dueToday, stats.overallProgress]);
 
   const handleReviewClick = () => {
     router.push('/tasks?status=overdue');
@@ -229,7 +232,7 @@ export const QuickStats = () => {
             </div>
           </div>
           <div className="relative w-24 h-24 flex-shrink-0 flex items-center justify-center">
-            <svg className="w-full h-full transform -rotate-90 drop-shadow-sm" aria-hidden="true">
+            <svg className="w-full h-full transform -rotate-90 drop-shadow-sm" aria-hidden="true" viewBox="0 0 96 96">
               <circle
                 className="text-slate-100 dark:text-slate-800"
                 cx="48"
@@ -238,7 +241,8 @@ export const QuickStats = () => {
                 r="38"
                 stroke="currentColor"
                 strokeWidth="8"
-              ></circle>
+              />
+              {/* Progress arc: 12 o'clock, anticlockwise (scale -1 around center reverses path direction) */}
               <circle
                 className="text-yellow-500 transition-all duration-1000 ease-out"
                 cx="48"
@@ -246,14 +250,13 @@ export const QuickStats = () => {
                 fill="transparent"
                 r="38"
                 stroke="currentColor"
-                strokeDasharray="238"
-                strokeDashoffset={animatedProgress}
+                strokeDasharray={`${animatedProgress} ${238 - animatedProgress}`}
+                strokeDashoffset={0}
                 strokeLinecap="round"
                 strokeWidth="8"
-                style={{
-                  transitionDelay: '0.5s',
-                }}
-              ></circle>
+                transform="translate(48,48) scale(1,-1) translate(-48,-48)"
+                style={{ transitionDelay: '0.5s' }}
+              />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center flex-col">
               <span className="text-lg font-bold text-slate-900 dark:text-white transition-all duration-1000 ease-out" style={{ transitionDelay: '0.5s', opacity: isAnimated ? 1 : 0 }}>

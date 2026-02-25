@@ -45,7 +45,7 @@ const fetchUser = async (): Promise<User | null> => {
       
       if (allEmailData.length > 1) {
         console.warn(`⚠️ Found ${allEmailData.length} team_member records for ${user.email}. Using role: ${emailData.role}`);
-        console.warn('💡 Run supabase/03_link_user.sql to clean up duplicates');
+        console.warn('💡 Link your user: see supabase/README.md (Linking auth user)');
       }
       
       // Try to update authUserId
@@ -61,7 +61,7 @@ const fetchUser = async (): Promise<User | null> => {
       } else {
         // Update failed (likely RLS blocking) - but still use the email-matched data
         console.warn('⚠️ Found team member by email but could not update authUserId:', updateError);
-        console.warn('💡 Run the SQL script in supabase/03_link_user.sql to fix this permanently');
+        console.warn('💡 Link your auth user: run the UPDATE in supabase/README.md');
         // Use the email-matched data anyway (user will see correct role)
         data = emailData;
       }

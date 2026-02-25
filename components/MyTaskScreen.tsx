@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Task } from './types';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { getTaskStatusConfig, getTaskPriorityConfig } from './utils/statusConfig';
 import { useTasks } from '@/hooks/useTasks';
 import { AddTaskModal, TaskDetailsModal } from './modals';
@@ -49,6 +49,16 @@ export const MyTaskScreen = () => {
     setIsTaskDetailsModalOpen(true);
   };
 
+  // Keep selected task in sync with latest data so modal updates in "real time"
+  useEffect(() => {
+    if (!selectedTask) return;
+
+    const updated = tasks.find((t) => t.id === selectedTask.id);
+    if (updated && updated !== selectedTask) {
+      setSelectedTask(updated);
+    }
+  }, [tasks, selectedTask]);
+
   return (
     <>
       <AppLayout
@@ -57,8 +67,9 @@ export const MyTaskScreen = () => {
         searchPlaceholder="Search tasks, projects..."
         onSearchChange={setSearchQuery}
       >
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 flex flex-col gap-6">
+      <PageContent>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 min-w-0">
+        <div className="xl:col-span-2 flex flex-col gap-4 min-w-0">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h2 className="text-2xl font-bold tracking-tight text-[#0e121b] dark:text-white">Good Morning, Alex!</h2>
@@ -274,7 +285,8 @@ export const MyTaskScreen = () => {
                   </div>
                 </div>
         </div>
-      </div>
+        </div>
+      </PageContent>
     </AppLayout>
     <AddTaskModal isOpen={isAddTaskModalOpen} onClose={() => setIsAddTaskModalOpen(false)} />
     <TaskDetailsModal

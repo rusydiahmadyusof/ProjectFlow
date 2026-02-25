@@ -2,15 +2,17 @@
 
 import { useState, useMemo } from 'react';
 import { TeamMember } from './types';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { getTeamRoleConfig } from './utils/statusConfig';
 import { useTeam, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember } from '@/hooks/useTeam';
+import { useTaskCountsByAssignee } from '@/hooks/useTasks';
 import { InviteMemberModal, EditMemberModal, ConfirmationModal, AlertModal } from './modals';
 import { validateEmail } from '@/lib/validation';
 import { sanitizeForStorage } from '@/lib/security';
 
 export const TeamScreen = () => {
   const { data: members = [], isLoading } = useTeam();
+  const { data: taskCountsByAssignee = {} } = useTaskCountsByAssignee();
   const createMember = useCreateTeamMember();
   const updateMember = useUpdateTeamMember();
   const deleteMember = useDeleteTeamMember();
@@ -122,13 +124,13 @@ export const TeamScreen = () => {
     }
 
     if (statusFilter === 'active') {
-      filtered = filtered.filter((member) => member.tasksAssigned > 0);
+      filtered = filtered.filter((member) => (taskCountsByAssignee[member.id]?.assigned ?? 0) > 0);
     } else if (statusFilter === 'inactive') {
-      filtered = filtered.filter((member) => member.tasksAssigned === 0);
+      filtered = filtered.filter((member) => (taskCountsByAssignee[member.id]?.assigned ?? 0) === 0);
     }
 
     return filtered;
-  }, [members, searchQuery, roleFilter, statusFilter]);
+  }, [members, searchQuery, roleFilter, statusFilter, taskCountsByAssignee]);
 
   const handleInvite = async (email: string, role: string) => {
     // Validate email
@@ -177,8 +179,8 @@ export const TeamScreen = () => {
         searchPlaceholder="Search team members..."
         onSearchChange={setSearchQuery}
       >
-      <div className="mx-auto max-w-7xl flex flex-col gap-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+      <PageContent>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-col gap-1">
             <p className="text-[#506395] text-base">Manage your team members and their permissions.</p>
           </div>
@@ -251,8 +253,8 @@ export const TeamScreen = () => {
             </span>
           </div>
         </div>
-        <div className="w-full overflow-hidden rounded-lg border border-[#d1d6e6] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-          <div className="overflow-x-auto">
+        <div className="w-full min-w-0 overflow-hidden rounded-lg border border-[#d1d6e6] dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+          <div className="overflow-x-auto min-w-0">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#e8ebf3] dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
@@ -318,16 +320,16 @@ export const TeamScreen = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[#506395]">
-                        {member.tasksAssigned}
+                        {taskCountsByAssignee[member.id]?.assigned ?? 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {member.tasksOverdue > 0 ? (
+                        {(taskCountsByAssignee[member.id]?.overdue ?? 0) > 0 ? (
                           <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-red-50 dark:bg-red-900/20 w-fit">
                             <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-[16px]">
                               warning
                             </span>
                             <span className="text-sm font-bold text-red-600 dark:text-red-400">
-                              {member.tasksOverdue} Overdue
+                              {taskCountsByAssignee[member.id]?.overdue ?? 0} Overdue
                             </span>
                           </div>
                         ) : (
@@ -428,7 +430,7 @@ export const TeamScreen = () => {
             </div>
           </div>
         </div>
-      </div>
+      </PageContent>
     </AppLayout>
     <InviteMemberModal
       isOpen={isInviteModalOpen}

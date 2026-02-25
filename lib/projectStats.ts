@@ -1,5 +1,7 @@
 import { Task, Project } from '@/components/types';
 
+export type TaskStatusKey = Task['status'];
+
 export interface ProjectStats {
   progress: number;
   startDate: string;
@@ -12,6 +14,13 @@ export interface ProjectStats {
   progressDataPoints: Array<{
     date: string;
     progress: number;
+  }>;
+  perStatusSeries: Array<{
+    status: TaskStatusKey;
+    points: Array<{
+      date: string;
+      count: number;
+    }>;
   }>;
 }
 
@@ -274,6 +283,52 @@ export const calculateProjectStats = (
           ? [{ date: endDate, progress: 0 }, { date: endDate, progress: progress }]
           : [];
 
+  const parseLabelToDate = (label: string): Date => {
+    if (label.includes(',')) {
+      const parsed = new Date(label);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    const currentYear = new Date().getFullYear();
+    const parsed = new Date(`${label} ${currentYear}`);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const baseBuckets = progressDataPoints.map((p) => ({
+    label: p.date,
+    date: parseLabelToDate(p.date),
+  }));
+
+  const allStatuses: TaskStatusKey[] = ['to-do', 'in-progress', 'done', 'overdue', 'review', 'drafting', 'pending'];
+
+  const perStatusSeries = allStatuses
+    .map((status) => {
+      if (!baseBuckets.length || tasks.length === 0) return null;
+
+      const points = baseBuckets.map((bucket) => {
+        const count = tasks.filter((t) => {
+          if (t.status !== status) return false;
+          if (!t.createdAt) return false;
+          const created = new Date(t.createdAt);
+          if (Number.isNaN(created.getTime())) return false;
+          return created <= bucket.date;
+        }).length;
+
+        return {
+          date: bucket.label,
+          count,
+        };
+      });
+
+      const hasAny = points.some((p) => p.count > 0);
+      if (!hasAny) return null;
+
+      return {
+        status,
+        points,
+      };
+    })
+    .filter(Boolean) as ProjectStats['perStatusSeries'];
+
   return {
     progress,
     startDate,
@@ -281,5 +336,6 @@ export const calculateProjectStats = (
     teamMembers,
     projectLead,
     progressDataPoints,
+    perStatusSeries,
   };
 };

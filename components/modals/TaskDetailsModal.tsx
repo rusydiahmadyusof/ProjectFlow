@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Task, TaskComment, TeamMember } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { Task, TaskComment, TaskSubtask, TeamMember } from '../types';
 import { getTaskStatusConfig, getTaskPriorityConfig } from '../utils/statusConfig';
 import { useProjects } from '@/hooks/useProjects';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import { useCreateActivity } from '@/hooks/useActivities';
 import { useUser } from '@/hooks/useUser';
 import { AssignTaskModal, SetReminderModal, ConfirmationModal, AlertModal } from './index';
 import { uploadFile, formatFileSize, getFileIcon } from '@/lib/fileUpload';
@@ -24,17 +25,34 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<
+    TaskComment['attachments'] | undefined
+  >(undefined);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ title: string; message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const closeTaskModalAfterAlertRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: projects = [] } = useProjects();
   const { data: currentUser } = useUser();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const createActivity = useCreateActivity();
+  const [statusValue, setStatusValue] = useState<Task['status']>('to-do');
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editingDescriptionValue, setEditingDescriptionValue] = useState('');
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
 
   // Debug logging
   console.log('TaskDetailsModal render:', { isOpen, task: task?.id, taskTitle: task?.title });
+
+  useEffect(() => {
+    if (task) {
+      setStatusValue(task.status);
+      if (!isEditingDescription) setEditingDescriptionValue(task.description ?? '');
+    }
+  }, [task?.id, task?.status, task?.description, isEditingDescription]);
 
   if (!isOpen || !task) {
     console.log('TaskDetailsModal not rendering:', { isOpen, hasTask: !!task });
@@ -42,7 +60,7 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
   }
 
   const priorityConfig = getTaskPriorityConfig(task.priority);
-  const statusConfig = getTaskStatusConfig(task.status);
+  const statusConfig = getTaskStatusConfig(statusValue);
   const project = task.projectId ? projects.find((p) => p.id === task.projectId) : null;
   const completedSubtasks = task.subtasks?.filter((st) => st.isCompleted).length || 0;
   const totalSubtasks = task.subtasks?.length || 0;
@@ -69,7 +87,7 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
         },
         content: sanitizeForStorage(commentText),
         time: new Date().toISOString(),
-        attachments: [], // Will be populated if files are uploaded
+        attachments: pendingAttachments,
       };
 
       // Get existing comments
@@ -83,6 +101,7 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
       });
 
       setCommentText('');
+      setPendingAttachments(undefined);
       onTaskUpdate?.();
     } catch (err) {
       console.error('Failed to post comment', err);
@@ -108,18 +127,19 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
         setCommentError(`Failed to upload ${failedUploads.length} file(s)`);
       }
 
-      // If comment text exists, attach files to it
-      if (commentText.trim() && successfulUploads.length > 0) {
-        const attachments = successfulUploads.map((result) => ({
-          name: files[results.indexOf(result)].name,
-          size: formatFileSize(files[results.indexOf(result)].size),
-          type: files[results.indexOf(result)].type,
-          url: result.url,
-        }));
+      if (successfulUploads.length > 0) {
+        const uploadedAttachments =
+          successfulUploads.map((result, index) => ({
+            name: files[index].name,
+            size: formatFileSize(files[index].size),
+            type: files[index].type,
+            url: result.url,
+          })) || [];
 
-        // Store attachments temporarily (will be added when comment is posted)
-        // For now, we'll add them to the comment when posting
-        console.log('Files uploaded:', attachments);
+        setPendingAttachments((current) => [
+          ...(current ?? []),
+          ...uploadedAttachments,
+        ]);
       }
     } catch (err) {
       console.error('Failed to upload files', err);
@@ -147,6 +167,16 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
             }
           : undefined,
       });
+      if (currentUser) {
+        createActivity.mutateAsync({
+          user: currentUser.name,
+          action: assignee ? 'assigned' : 'unassigned',
+          target: assignee ? `${task.title} to ${assignee.name}` : task.title,
+          icon: 'person',
+          iconColor: 'text-purple-600',
+          bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+        }).catch(() => {});
+      }
       onTaskUpdate?.();
     } catch (err) {
       console.error('Failed to assign task', err);
@@ -164,6 +194,140 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
       onTaskUpdate?.();
     } catch (err) {
       console.error('Failed to set reminder', err);
+    }
+  };
+
+  const statusLabels: Record<Task['status'], string> = {
+    'to-do': 'To Do',
+    'in-progress': 'In Progress',
+    done: 'Done',
+    overdue: 'Overdue',
+    review: 'Review',
+    drafting: 'Drafting',
+    pending: 'Pending',
+  };
+
+  const handleStatusChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!task) return;
+
+    const nextStatus = event.target.value as Task['status'];
+    setStatusValue(nextStatus);
+
+    try {
+      await updateTask.mutateAsync({
+        id: task.id,
+        status: nextStatus,
+        isCompleted: nextStatus === 'done',
+      });
+      if (currentUser) {
+        if (nextStatus === 'done') {
+          createActivity.mutateAsync({
+            user: currentUser.name,
+            action: 'completed',
+            target: task.title,
+            icon: 'check_circle',
+            iconColor: 'text-primary',
+            bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+          }).catch(() => {});
+        } else {
+          createActivity.mutateAsync({
+            user: currentUser.name,
+            action: 'moved to',
+            target: `${task.title} · ${statusLabels[nextStatus] ?? nextStatus}`,
+            icon: 'swap_horiz',
+            iconColor: 'text-amber-600',
+            bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+          }).catch(() => {});
+        }
+      }
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to update status', err);
+    }
+  };
+
+  const handleDescriptionSave = async () => {
+    if (!task) return;
+    try {
+      await updateTask.mutateAsync({
+        id: task.id,
+        description: sanitizeForStorage(editingDescriptionValue.trim()) || undefined,
+      });
+      if (currentUser) {
+        createActivity.mutateAsync({
+          user: currentUser.name,
+          action: 'updated description of',
+          target: task.title,
+          icon: 'description',
+          iconColor: 'text-slate-600',
+          bgColor: 'bg-slate-50 dark:bg-slate-900/20',
+        }).catch(() => {});
+      }
+      setIsEditingDescription(false);
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to update description', err);
+    }
+  };
+
+  const handleSubtaskToggle = async (subtaskId: string) => {
+    if (!task?.subtasks) return;
+    const next = task.subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, isCompleted: !st.isCompleted } : st
+    );
+    try {
+      await updateTask.mutateAsync({ id: task.id, subtasks: next });
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to update subtask', err);
+    }
+  };
+
+  const handleAddSubtask = async () => {
+    if (!task) return;
+    const newSubtask: TaskSubtask = {
+      id: `st-${Date.now()}`,
+      title: 'New subtask',
+      isCompleted: false,
+    };
+    const next = [...(task.subtasks ?? []), newSubtask];
+    try {
+      await updateTask.mutateAsync({ id: task.id, subtasks: next });
+      setEditingSubtaskId(newSubtask.id);
+      setEditingSubtaskTitle(newSubtask.title);
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to add subtask', err);
+    }
+  };
+
+  const handleSubtaskTitleSave = async (subtaskId: string, title: string) => {
+    if (!task?.subtasks) return;
+    const next = task.subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, title: sanitizeForStorage(title.trim()) || st.title } : st
+    );
+    try {
+      await updateTask.mutateAsync({ id: task.id, subtasks: next });
+      setEditingSubtaskId(null);
+      setEditingSubtaskTitle('');
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to update subtask title', err);
+    }
+  };
+
+  const handleRemoveSubtask = async (subtaskId: string) => {
+    if (!task?.subtasks) return;
+    const next = task.subtasks.filter((st) => st.id !== subtaskId);
+    try {
+      await updateTask.mutateAsync({ id: task.id, subtasks: next });
+      if (editingSubtaskId === subtaskId) {
+        setEditingSubtaskId(null);
+        setEditingSubtaskTitle('');
+      }
+      onTaskUpdate?.();
+    } catch (err) {
+      console.error('Failed to remove subtask', err);
     }
   };
 
@@ -258,14 +422,20 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
                     onClick={() => setIsAssignModalOpen(true)}
                     className="flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg p-1 -ml-1 transition-colors"
                   >
-                    {task.assignee?.avatar ? (
+                    {task.assignee ? (
                       <div className="flex items-center gap-2">
-                        <div
-                          className="size-8 rounded-full ring-2 ring-white dark:ring-surface-dark bg-cover bg-center"
-                          style={{ backgroundImage: `url('${task.assignee.avatar}')` }}
-                          role="img"
-                          aria-label={`${task.assignee.name} avatar`}
-                        ></div>
+                        {task.assignee.avatar ? (
+                          <div
+                            className="size-8 rounded-full ring-2 ring-white dark:ring-surface-dark bg-cover bg-center"
+                            style={{ backgroundImage: `url('${task.assignee.avatar}')` }}
+                            role="img"
+                            aria-label={`${task.assignee.name} avatar`}
+                          ></div>
+                        ) : (
+                          <div className="size-8 rounded-full ring-2 ring-white dark:ring-surface-dark bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                            {task.assignee.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         <span className="text-sm font-medium text-[#0e121b] dark:text-white">
                           {task.assignee.name}
                         </span>
@@ -340,7 +510,8 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
                     <div className={`size-2 rounded-full ${statusConfig.dotColor || 'bg-blue-500'}`}></div>
                     <select
                       className="text-sm font-medium text-[#0e121b] dark:text-white bg-transparent border-none focus:ring-0 cursor-pointer"
-                      defaultValue={task.status}
+                      value={statusValue}
+                      onChange={handleStatusChange}
                     >
                       <option value="to-do">To Do</option>
                       <option value="in-progress">In Progress</option>
@@ -356,53 +527,133 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
                 </div>
               </div>
 
-              {/* Description Section */}
-              {task.description && (
-                <div className="mb-6">
-                  <h3 className="text-xs font-semibold text-[#506395] dark:text-gray-400 uppercase tracking-wider mb-3">
-                    Description
-                  </h3>
-                  <div className="text-sm text-[#0e121b] dark:text-gray-300 space-y-2">
-                    <p>{task.description}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Subtasks Section */}
-              {task.subtasks && task.subtasks.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-semibold text-[#506395] dark:text-gray-400 uppercase tracking-wider">
-                      Subtasks ({completedSubtasks}/{totalSubtasks})
-                    </h3>
-                    <button className="text-xs text-primary hover:text-blue-700 font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[16px]">add</span>
-                      Add subtask
-                    </button>
-                  </div>
+              {/* Description Section - always visible, editable */}
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-[#506395] dark:text-gray-400 uppercase tracking-wider mb-3">
+                  Description
+                </h3>
+                {isEditingDescription ? (
                   <div className="space-y-2">
-                    {task.subtasks.map((subtask) => (
-                      <div key={subtask.id} className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={subtask.isCompleted}
-                          onChange={() => {}}
-                          className="size-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                        />
-                        <span
-                          className={`text-sm text-[#0e121b] dark:text-gray-300 flex-1 ${
-                            subtask.isCompleted
-                              ? 'line-through decoration-gray-400 dark:decoration-gray-600 text-gray-500'
-                              : ''
-                          }`}
-                        >
-                          {subtask.title}
-                        </span>
-                      </div>
-                    ))}
+                    <textarea
+                      value={editingDescriptionValue}
+                      onChange={(e) => setEditingDescriptionValue(e.target.value)}
+                      rows={4}
+                      maxLength={2000}
+                      className="w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-sm text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary resize-y placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                      placeholder="Add a description..."
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDescriptionSave}
+                        className="px-3 py-1.5 bg-primary hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingDescription(false);
+                          setEditingDescriptionValue(task.description ?? '');
+                        }}
+                        className="px-3 py-1.5 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-sm font-medium text-[#0e121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      setIsEditingDescription(true);
+                      setEditingDescriptionValue(task.description ?? '');
+                    }}
+                    className="text-sm text-[#0e121b] dark:text-gray-300 min-h-[2.5rem] px-3 py-2 rounded-lg border border-transparent hover:border-[#e8ebf3] dark:hover:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 cursor-text transition-colors"
+                  >
+                    {task.description ? (
+                      <p className="whitespace-pre-wrap">{task.description}</p>
+                    ) : (
+                      <p className="text-[#506395] dark:text-gray-500">Add description...</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Subtasks Section - always visible, editable */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-[#506395] dark:text-gray-400 uppercase tracking-wider">
+                    Subtasks ({completedSubtasks}/{totalSubtasks})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleAddSubtask}
+                    className="text-xs text-primary hover:text-blue-700 font-medium flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Add subtask
+                  </button>
                 </div>
-              )}
+                <div className="space-y-2">
+                  {(task.subtasks ?? []).map((subtask) => (
+                    <div key={subtask.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={subtask.isCompleted}
+                        onChange={() => handleSubtaskToggle(subtask.id)}
+                        className="size-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                        aria-label={`Mark "${subtask.title}" complete`}
+                      />
+                      {editingSubtaskId === subtask.id ? (
+                        <input
+                          type="text"
+                          value={editingSubtaskTitle}
+                          onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                          onBlur={() => {
+                            if (editingSubtaskTitle.trim()) {
+                              handleSubtaskTitleSave(subtask.id, editingSubtaskTitle);
+                            } else {
+                              setEditingSubtaskId(null);
+                              setEditingSubtaskTitle('');
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          autoFocus
+                          className="flex-1 px-3 py-1.5 text-sm bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+                        />
+                      ) : (
+                        <>
+                          <span
+                            onClick={() => {
+                              setEditingSubtaskId(subtask.id);
+                              setEditingSubtaskTitle(subtask.title);
+                            }}
+                            className={`text-sm text-[#0e121b] dark:text-gray-300 flex-1 cursor-text py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+                              subtask.isCompleted
+                                ? 'line-through decoration-gray-400 dark:decoration-gray-600 text-gray-500'
+                                : ''
+                            }`}
+                          >
+                            {subtask.title || 'Untitled'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubtask(subtask.id)}
+                            className="p-1 rounded text-[#506395] hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
+                            aria-label={`Remove subtask "${subtask.title}"`}
+                          >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Right Column - Activity & Comments */}
@@ -511,6 +762,22 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
                     rows={3}
                     maxLength={5000}
                   />
+                  {pendingAttachments && pendingAttachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {pendingAttachments.map((attachment, index) => (
+                        <div
+                          key={`${attachment.name}-${index}`}
+                          className="flex items-center gap-2 text-xs text-[#506395] dark:text-gray-400"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            {getFileIcon(attachment.type || '')}
+                          </span>
+                          <span className="truncate">{attachment.name}</span>
+                          <span className="text-[10px] opacity-80">{attachment.size}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-2">
                       <input
@@ -577,13 +844,12 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
           try {
             await deleteTask.mutateAsync(task.id);
             setShowDeleteConfirm(false);
-            onClose();
-            onTaskUpdate?.();
             setAlertMessage({
               title: 'Success',
               message: `Task "${task.title}" has been deleted.`,
               type: 'success',
             });
+            closeTaskModalAfterAlertRef.current = true;
           } catch (err) {
             console.error('Failed to delete task', err);
             setShowDeleteConfirm(false);
@@ -604,7 +870,14 @@ export const TaskDetailsModal = ({ isOpen, onClose, task, onTaskUpdate }: TaskDe
           title={alertMessage.title}
           message={alertMessage.message}
           type={alertMessage.type}
-          onClose={() => setAlertMessage(null)}
+          onClose={() => {
+            setAlertMessage(null);
+            if (closeTaskModalAfterAlertRef.current) {
+              closeTaskModalAfterAlertRef.current = false;
+              onClose();
+              onTaskUpdate?.();
+            }
+          }}
         />
       )}
     </div>

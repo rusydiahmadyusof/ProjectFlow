@@ -8,6 +8,9 @@ export interface Project {
   id: string;
   name: string;
   client: string;
+  description?: string;
+  goals?: string;
+  scope?: string;
   progress: number;
   status: 'on-track' | 'at-risk' | 'late';
   dueDate: string;

@@ -129,8 +129,8 @@ export const mockTeamMembers: TeamMember[] = [
   },
   {
     id: '11',
-    name: 'Rusydi',
-    email: 'dev.rusydi@gmail.com',
+    name: 'Owner',
+    email: 'owner@example.com',
     avatar: '',
     role: 'owner',
     tasksAssigned: 0,

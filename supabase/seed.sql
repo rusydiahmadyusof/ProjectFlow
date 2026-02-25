@@ -1,30 +1,14 @@
 -- ============================================
--- Seed Data (Optional) - Testing Company
+-- Seed data (optional)
 -- ============================================
--- Run this AFTER linking your user (03_link_user.sql)
--- This creates sample data for "Testing Company"
--- ============================================
--- 
--- Note: For production seeding, use the seed script:
--- npx tsx scripts/seed-database.ts
---
--- The seed script will populate:
--- - Team members with @testingcompany.com emails
--- - Projects with client = "Testing Company"
--- - Tasks, notifications, activities, and project memberships
---
--- This SQL file provides an alternative way to seed data directly via SQL.
+-- Run AFTER schema.sql. For full seeding (tasks, notifications, activities)
+-- use: npx tsx scripts/seed-database.ts
 -- ============================================
 
--- Seed Users (legacy table)
 INSERT INTO users (id, name, role, avatar)
 VALUES ('current', 'Alex Morgan', 'Product Manager', '')
-ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name,
-    role = EXCLUDED.role,
-    avatar = EXCLUDED.avatar;
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, avatar = EXCLUDED.avatar;
 
--- Seed Team Members
 INSERT INTO team_members (id, name, email, avatar, role, "tasksAssigned", "tasksOverdue")
 VALUES
   ('1', 'Sarah Connor', 'sarah.c@testingcompany.com', 'https://lh3.googleusercontent.com/aida-public/AB6AXuD3tgryqD_nkGvBmRRpnnVVTn1NcPdMEOn291SW6BJZU7kNJkg0Znt7klcHoXVECeBIvHkSxjPzD4VhdAayVJWDAnEAhy5r_ccpllgHRSkslZgCktVwmP8mtuG1uyetrCuUsyLpqeFK0CVRKig1i7wz42BHxj_7HZMogtHjbyCQ_jAYw5B-NMDCQy3G6Wlap2ZxjTft_ZNn5fwlLzazdToaIuXfubvtpDWhLeqLox0o48Xl13mUQ9PgMaXfj5jz5-A9eNeUqj9Nz0A', 'admin', 15, 1),
@@ -37,17 +21,9 @@ VALUES
   ('8', 'David Wilson', 'david.w@testingcompany.com', 'https://lh3.googleusercontent.com/aida-public/AB6AXuCQEXSgSZ1ef32haRBH4W5GH-ZOWxNLX6_KNQW9qj364o-qa_6Ks_wwfO9_KLWCZwOElMaJpzXyk3zI6MX3MMAEtsFA433oG5wuZ03LkYNe1pN94iri65xTRc85L2g0rDLYtwAbebt3OcCZJIljZym2f_pEbNfdmeWTDT00YzxCVD3GZSGtBjnZ6okqP7hLdWi5ukEhewVT0ygkQBz502OryTpsM3EE2e3AC63WX98XE23CqQVB7VOeVLeSE16irut69U6TlPbHf3g', 'member', 4, 1),
   ('9', 'Sarah Wilson', 'sarah.w@testingcompany.com', '', 'member', 3, 0),
   ('10', 'Charlie Brown', 'charlie.b@testingcompany.com', 'https://lh3.googleusercontent.com/aida-public/AB6AXuDmMRfDmw-KdxcE3nVZOgaEEuCPIkgTCgP8mU252GNyo5-YEyinUmoMpwx1WnipeP1VE1hlrNCab9gC_x1mEZCzAsjrLDTM-6lZJ5kxsAOErtKy94BPQsEJKQ3UHr3pDw2ZYHMMekLbv3zU1yffSK72IYhZshT4Giw-LX9vpckKsMoUUCYhDRfmVhInOg1wuchCXS4OxoyzQzOHHGFY3tm2nwpc15le-wodT-GqESzMbFPI1NNdQdkyYUEXoEFswe5vdpj-hSeeqpM', 'guest', 2, 0),
-  ('11', 'Rusydi', 'dev.rusydi@gmail.com', '', 'owner', 0, 0)
-ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name,
-    email = EXCLUDED.email,
-    avatar = EXCLUDED.avatar,
-    role = EXCLUDED.role,
-    "tasksAssigned" = EXCLUDED."tasksAssigned",
-    "tasksOverdue" = EXCLUDED."tasksOverdue";
+  ('11', 'Owner', 'owner@example.com', '', 'owner', 0, 0)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, avatar = EXCLUDED.avatar, role = EXCLUDED.role, "tasksAssigned" = EXCLUDED."tasksAssigned", "tasksOverdue" = EXCLUDED."tasksOverdue";
 
--- Seed Projects
--- Note: Dates are formatted as "Mon DD, YYYY" to match mockData format
 INSERT INTO projects (id, name, client, progress, status, "dueDate", "taskCount", "teamMembers", "isOverdue")
 VALUES
   ('1', 'Website Redesign', 'Testing Company', 75, 'on-track', TO_CHAR(CURRENT_DATE + INTERVAL '15 days', 'Mon DD, YYYY'), 24, '[]'::jsonb, false),
@@ -58,63 +34,16 @@ VALUES
   ('6', 'Data Migration', 'Testing Company', 55, 'on-track', TO_CHAR(CURRENT_DATE + INTERVAL '25 days', 'Mon DD, YYYY'), 15, '[]'::jsonb, false),
   ('7', 'Customer Portal', 'Testing Company', 30, 'at-risk', TO_CHAR(CURRENT_DATE + INTERVAL '60 days', 'Mon DD, YYYY'), 22, '[]'::jsonb, false),
   ('8', 'API Integration', 'Testing Company', 85, 'on-track', TO_CHAR(CURRENT_DATE + INTERVAL '10 days', 'Mon DD, YYYY'), 10, '[]'::jsonb, false)
-ON CONFLICT (id) DO UPDATE
-SET name = EXCLUDED.name,
-    client = EXCLUDED.client,
-    progress = EXCLUDED.progress,
-    status = EXCLUDED.status,
-    "dueDate" = EXCLUDED."dueDate",
-    "taskCount" = EXCLUDED."taskCount",
-    "isOverdue" = EXCLUDED."isOverdue";
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, client = EXCLUDED.client, progress = EXCLUDED.progress, status = EXCLUDED.status, "dueDate" = EXCLUDED."dueDate", "taskCount" = EXCLUDED."taskCount", "isOverdue" = EXCLUDED."isOverdue";
 
--- Seed Project Memberships
--- Delete existing memberships for these projects first to avoid duplicates
-DELETE FROM project_memberships
-WHERE "projectId" IN ('1', '2', '3', '4', '5', '6', '7', '8');
-
--- Insert project memberships
+DELETE FROM project_memberships WHERE "projectId" IN ('1', '2', '3', '4', '5', '6', '7', '8');
 INSERT INTO project_memberships ("projectId", "memberId", role)
 VALUES
-  -- Project 1: Website Redesign
-  ('1', '1', 'member'),
-  ('1', '2', 'member'),
-  ('1', '3', 'member'),
-  ('1', '4', 'member'),
-  ('1', '10', 'guest'),
-  
-  -- Project 2: Mobile App MVP
-  ('2', '2', 'member'),
-  ('2', '5', 'member'),
-  ('2', '6', 'member'),
-  
-  -- Project 3: Q1 Marketing Campaign
-  ('3', '3', 'member'),
-  ('3', '7', 'member'),
-  ('3', '10', 'guest'),
-  
-  -- Project 4: E-commerce Platform
-  ('4', '1', 'member'),
-  ('4', '4', 'member'),
-  ('4', '8', 'member'),
-  
-  -- Project 5: Brand Identity
+  ('1', '1', 'member'), ('1', '2', 'member'), ('1', '3', 'member'), ('1', '4', 'member'), ('1', '10', 'guest'),
+  ('2', '2', 'member'), ('2', '5', 'member'), ('2', '6', 'member'),
+  ('3', '3', 'member'), ('3', '7', 'member'), ('3', '10', 'guest'),
+  ('4', '1', 'member'), ('4', '4', 'member'), ('4', '8', 'member'),
   ('5', '5', 'member'),
-  
-  -- Project 6: Data Migration
-  ('6', '2', 'member'),
-  ('6', '3', 'member'),
-  ('6', '6', 'member'),
-  
-  -- Project 7: Customer Portal
-  ('7', '1', 'member'),
-  ('7', '4', 'member'),
-  ('7', '5', 'member'),
-  ('7', '8', 'member'),
-  
-  -- Project 8: API Integration
-  ('8', '2', 'member'),
-  ('8', '6', 'member');
-
--- Note: Tasks, Notifications, and Activities are best seeded via the TypeScript script
--- (npx tsx scripts/seed-database.ts) as they contain complex JSONB structures
--- that are easier to manage in TypeScript.
+  ('6', '2', 'member'), ('6', '3', 'member'), ('6', '6', 'member'),
+  ('7', '1', 'member'), ('7', '4', 'member'), ('7', '5', 'member'), ('7', '8', 'member'),
+  ('8', '2', 'member'), ('8', '6', 'member');

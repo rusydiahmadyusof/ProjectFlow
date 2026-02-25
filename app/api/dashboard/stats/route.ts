@@ -63,15 +63,18 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.progress - a.progress); // Sort by progress descending
 
-    // Weekly task completion for Activity Trends (last 4 weeks: Week 1 = most recent 7 days)
+    // Last 30 days task completion for Activity Trends (one bucket per day; index 0 = 30 days ago, index 29 = today)
     const now = new Date();
-    const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-    const weeklyCompletionAll: number[] = [0, 0, 0, 0];
-    const weeklyCompletionByProject: Record<string, number[]> = {};
+    const DAYS = 30;
+    const dailyLabels: string[] = [];
+    for (let i = 0; i < DAYS; i++) {
+      dailyLabels.push(i === DAYS - 1 ? 'Today' : `${DAYS - 1 - i}d ago`);
+    }
+    const dailyCompletionAll: number[] = new Array(DAYS).fill(0);
+    const dailyCompletionByProject: Record<string, number[]> = {};
     projects.forEach((p) => {
-      weeklyCompletionByProject[p.id] = [0, 0, 0, 0];
+      dailyCompletionByProject[p.id] = new Array(DAYS).fill(0);
     });
-    // Support both camelCase and snake_case (Supabase/PostgREST may return either)
     const getTaskDate = (t: Record<string, unknown>): Date | null => {
       const dateStr = (t.updatedAt ?? t.updated_at ?? t.createdAt ?? t.created_at) as string | undefined;
       if (!dateStr) return null;
@@ -90,36 +93,16 @@ export async function GET(request: NextRequest) {
       const dateToUse = d ?? new Date();
       const ms = now.getTime() - dateToUse.getTime();
       const daysAgo = ms / (1000 * 60 * 60 * 24);
-      let weekIndex = -1;
-      if (daysAgo >= 0 && daysAgo <= 7) weekIndex = 0;
-      else if (daysAgo > 7 && daysAgo <= 14) weekIndex = 1;
-      else if (daysAgo > 14 && daysAgo <= 21) weekIndex = 2;
-      else if (daysAgo > 21 && daysAgo <= 28) weekIndex = 3;
-      if (weekIndex >= 0) {
-        weeklyCompletionAll[weekIndex]++;
+      const dayIndex = Math.floor(daysAgo);
+      if (dayIndex >= 0 && dayIndex < DAYS) {
+        const bucketIndex = DAYS - 1 - dayIndex; // 0 = 30d ago, 29 = today
+        dailyCompletionAll[bucketIndex]++;
         const pid = getTaskProjectId(t);
-        if (pid && weeklyCompletionByProject[pid]) {
-          weeklyCompletionByProject[pid][weekIndex]++;
+        if (pid && dailyCompletionByProject[pid]) {
+          dailyCompletionByProject[pid][bucketIndex]++;
         }
       }
     });
-
-    // If we have completed tasks but no dates matched (e.g. snake_case not read), spread across weeks so chart isn't empty
-    const totalPlaced = weeklyCompletionAll.reduce((a, b) => a + b, 0);
-    if (completedTasksList.length > 0 && totalPlaced === 0) {
-      const perWeek = Math.floor(completedTasksList.length / 4);
-      const remainder = completedTasksList.length % 4;
-      for (let i = 0; i < 4; i++) {
-        weeklyCompletionAll[i] = perWeek + (i < remainder ? 1 : 0);
-      }
-      completedTasksList.forEach((t, idx) => {
-        const pid = getTaskProjectId(t);
-        if (pid && weeklyCompletionByProject[pid]) {
-          const wi = idx % 4;
-          weeklyCompletionByProject[pid][wi] = (weeklyCompletionByProject[pid][wi] ?? 0) + 1;
-        }
-      });
-    }
 
     const stats = {
       completionPercentage,
@@ -128,9 +111,9 @@ export async function GET(request: NextRequest) {
       trendPercentage,
       projectProgress,
       weeklyTrend: {
-        labels: weekLabels,
-        all: weeklyCompletionAll,
-        byProject: weeklyCompletionByProject,
+        labels: dailyLabels,
+        all: dailyCompletionAll,
+        byProject: dailyCompletionByProject,
       },
       projects: projects.map((p) => ({ id: p.id, name: p.name })),
       // Also include raw stats for other components that might need them

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { TeamMember } from './types';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { getTeamRoleConfig } from './utils/statusConfig';
 import { AlertModal } from './modals';
 import { useTeam } from '@/hooks/useTeam';
@@ -49,7 +49,7 @@ export const SettingsScreen = () => {
       showSearch
       searchPlaceholder="Search tasks, projects, or team members..."
     >
-      <div className="max-w-[1000px] mx-auto flex flex-col gap-8">
+      <PageContent maxWidth="narrow">
               <div className="flex flex-col gap-2">
                 <h1 className="text-text-main dark:text-white text-3xl md:text-4xl font-black tracking-tight">Settings & Admin</h1>
                 <p className="text-text-secondary text-base max-w-2xl">Manage your organization profile, default project configurations, team members, and system preferences.</p>
@@ -212,7 +212,7 @@ export const SettingsScreen = () => {
                   </button>
                 </div>
               </form>
-      </div>
+      </PageContent>
       {alertMessage && (
         <AlertModal
           isOpen={!!alertMessage}

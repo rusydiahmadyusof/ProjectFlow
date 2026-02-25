@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useDashboardStats } from '@/hooks/useDashboard';
+import { Card } from '@/components/ui';
 
 const VIEW_WIDTH = 400;
 const VIEW_HEIGHT = 200;
@@ -20,13 +21,19 @@ export const ActivityTrends = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const labels = weeklyTrend?.labels ?? ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-  const valuesAll = weeklyTrend?.all ?? [0, 0, 0, 0];
+  const labels = weeklyTrend?.labels ?? [];
+  const valuesAll = weeklyTrend?.all ?? [];
   const byProject = weeklyTrend?.byProject ?? {};
   const currentValues =
     filter === 'all'
       ? valuesAll
       : (byProject[filter] ?? Array(labels.length).fill(0));
+  // Show a subset of x-axis labels for readability (e.g. 30d, 25d, 20d, ... Today)
+  const axisLabelIndices =
+    labels.length > 6
+      ? [0, Math.floor(labels.length / 5), Math.floor((2 * labels.length) / 5), Math.floor((3 * labels.length) / 5), Math.floor((4 * labels.length) / 5), labels.length - 1]
+      : labels.map((_, i) => i);
+  const axisLabels = axisLabelIndices.map((i) => labels[i]);
 
   const maxValue = Math.max(1, ...currentValues);
   const points = useMemo(() => {
@@ -48,10 +55,11 @@ export const ActivityTrends = () => {
     return d;
   }, [points]);
 
+  const chartBottomY = 10 + CHART_HEIGHT;
   const areaD = useMemo(() => {
     if (pathD === '') return '';
-    return `${pathD} L ${points[points.length - 1].x},${VIEW_HEIGHT} L ${points[0].x},${VIEW_HEIGHT} Z`;
-  }, [pathD, points]);
+    return `${pathD} L ${points[points.length - 1].x},${chartBottomY} L ${points[0].x},${chartBottomY} Z`;
+  }, [pathD, points, chartBottomY]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -63,13 +71,22 @@ export const ActivityTrends = () => {
   const pathLength = 600;
   const maskHeight = isAnimated ? VIEW_HEIGHT : 0;
 
+  // Chart content in viewBox: x from PAD_X to PAD_X+CHART_WIDTH (same range as the line)
+  const contentLeft = PAD_X / VIEW_WIDTH;
+  const contentRight = (PAD_X + CHART_WIDTH) / VIEW_WIDTH;
+  const contentWidth = contentRight - contentLeft;
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = chartRef.current;
-    if (!el) return;
+    if (!el || points.length === 0) return;
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const fraction = x / rect.width;
-    const index = Math.max(0, Math.min(points.length - 1, Math.floor(fraction * points.length)));
+    const contentFraction = (fraction - contentLeft) / contentWidth;
+    const index = Math.max(
+      0,
+      Math.min(points.length - 1, Math.round(contentFraction * (points.length - 1)))
+    );
     setHoveredIndex(index);
   };
 
@@ -78,29 +95,32 @@ export const ActivityTrends = () => {
   };
 
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
+  // Position dot/tooltip using same coordinates as the line (viewBox → % of container)
+  const hoverLeftPercent = hoveredPoint != null ? (hoveredPoint.x / VIEW_WIDTH) * 100 : 50;
+  const hoverTopPercent = hoveredPoint != null ? (hoveredPoint.y / VIEW_HEIGHT) * 100 : 50;
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Trends</h3>
-            <p className="text-xs text-[#506395] mt-0.5">Task completion velocity</p>
+            <p className="text-xs text-[#506395] mt-0.5">Last 30 days task completion</p>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[#506395] text-sm">Loading...</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-      <div className="flex justify-between items-start mb-4 gap-2">
+    <Card className="h-full flex flex-col">
+      <div className="flex justify-between items-start mb-3 gap-2 flex-shrink-0">
         <div>
           <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Trends</h3>
-          <p className="text-xs text-[#506395] mt-0.5">Task completion velocity</p>
+          <p className="text-xs text-[#506395] mt-0.5">Last 30 days task completion</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <select
@@ -124,10 +144,10 @@ export const ActivityTrends = () => {
           </span>
         </div>
       </div>
-      <div className="flex-1 w-full flex flex-col justify-end relative min-h-0">
+      <div className="flex-1 w-full min-w-0 flex flex-col justify-end relative min-h-0 overflow-hidden">
         <div
           ref={chartRef}
-          className="relative h-[140px] md:h-[160px] w-full cursor-crosshair"
+          className="relative h-[140px] md:h-[160px] w-full min-w-0 cursor-crosshair overflow-hidden"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -135,32 +155,40 @@ export const ActivityTrends = () => {
             <div
               className="absolute z-20 flex flex-col items-center pointer-events-none transition-transform duration-75"
               style={{
-                left: `${(hoveredPoint.x / VIEW_WIDTH) * 100}%`,
-                top: `${(hoveredPoint.y / VIEW_HEIGHT) * 100}%`,
-                transform: 'translate(-50%, -100%) translateY(-8px)',
+                left: `${hoverLeftPercent}%`,
+                top: `${hoverTopPercent}%`,
+                transform:
+                  hoverTopPercent < 50
+                    ? 'translate(-50%, 0) translateY(12px)'
+                    : 'translate(-50%, -100%) translateY(-8px)',
               }}
             >
-              <div className="bg-[#0e121b] dark:bg-slate-800 text-white text-xs py-1.5 px-3 rounded shadow-lg border border-[#2d3748]">
+              {hoverTopPercent >= 50 && (
+                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#0e121b] dark:border-t-slate-800" />
+              )}
+              <div className="bg-[#0e121b] dark:bg-slate-800 text-white text-xs py-1.5 px-3 rounded shadow-lg border border-[#2d3748] whitespace-nowrap">
                 <span className="font-bold block">{labels[hoveredIndex!]}</span>
                 <span className="text-gray-300">
                   {hoveredPoint.value} Task{hoveredPoint.value !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-[#0e121b] dark:border-t-slate-800" />
+              {hoverTopPercent < 50 && (
+                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-[#0e121b] dark:border-b-slate-800" />
+              )}
             </div>
           )}
           {hoveredPoint !== null && (
             <div
               className="absolute size-3 bg-white border-2 border-primary rounded-full shadow z-10 pointer-events-none"
               style={{
-                left: `${(hoveredPoint.x / VIEW_WIDTH) * 100}%`,
-                top: `${(hoveredPoint.y / VIEW_HEIGHT) * 100}%`,
+                left: `${hoverLeftPercent}%`,
+                top: `${hoverTopPercent}%`,
                 transform: 'translate(-50%, -50%)',
               }}
             />
           )}
           <svg
-            className="w-full h-full overflow-visible"
+            className="w-full h-full block"
             preserveAspectRatio="none"
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             aria-label="Activity trends chart"
@@ -174,6 +202,9 @@ export const ActivityTrends = () => {
                 <stop offset="0%" stopColor="#1d4fd7" stopOpacity="0.2" />
                 <stop offset="100%" stopColor="#1d4fd7" stopOpacity="0" />
               </linearGradient>
+              <clipPath id="chartContentClip">
+                <rect x={PAD_X} y={10} width={CHART_WIDTH} height={CHART_HEIGHT} />
+              </clipPath>
               <clipPath id="activityChartClip">
                 <rect
                   x="0"
@@ -184,9 +215,10 @@ export const ActivityTrends = () => {
                 />
               </clipPath>
             </defs>
-            <g clipPath="url(#activityChartClip)">
-              <path d={areaD} fill="url(#activityAreaGradient)" />
-              <path
+            <g clipPath="url(#chartContentClip)">
+              <g clipPath="url(#activityChartClip)">
+                <path d={areaD} fill="url(#activityAreaGradient)" />
+                <path
                 d={pathD}
                 fill="none"
                 stroke="#1d4fd7"
@@ -197,15 +229,16 @@ export const ActivityTrends = () => {
                 strokeDashoffset={isAnimated ? 0 : pathLength}
                 style={{ transition: 'stroke-dashoffset 1s ease-out', transitionDelay: '0.2s' }}
               />
+              </g>
             </g>
           </svg>
         </div>
-        <div className="flex justify-between mt-3 text-[10px] font-medium text-[#506395] uppercase tracking-wide">
-          {labels.map((l) => (
-            <span key={l}>{l}</span>
+        <div className="flex justify-between mt-3 text-[10px] font-medium text-[#506395] dark:text-gray-400 uppercase tracking-wide flex-shrink-0 overflow-hidden">
+          {axisLabels.map((l) => (
+            <span key={l} className="truncate min-w-0">{l}</span>
           ))}
         </div>
       </div>
-    </div>
+    </Card>
   );
 };

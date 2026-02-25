@@ -125,10 +125,10 @@ export const AppHeader = ({
   const showDropdown = isSearchFocused && searchQuery.length > 0;
 
   return (
-    <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-[#1a202c] border-b border-[#e8ebf3] dark:border-[#2d3748] shrink-0">
-      <div className="flex items-center gap-4 flex-1">
+    <header className="h-16 flex items-center justify-between px-4 sm:px-6 bg-white dark:bg-[#1a202c] border-b border-[#e8ebf3] dark:border-[#2d3748] shrink-0 min-w-0">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
         {showSearch ? (
-          <div className="flex-1 max-w-xl" ref={searchRef}>
+          <div className="flex-1 max-w-xl min-w-0" ref={searchRef}>
             <div className="relative w-full group">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-[#506395] group-focus-within:text-primary transition-colors z-10">
                 <span className="material-symbols-outlined text-[20px]">search</span>
@@ -158,7 +158,7 @@ export const AppHeader = ({
           <h2 className="text-lg font-bold">{title}</h2>
         )}
       </div>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 flex-shrink-0">
         {showDateRange && (
           <button
             className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-background-light dark:bg-gray-800 rounded-lg border border-[#e8ebf3] dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -217,7 +217,7 @@ export const AppHeader = ({
             </>
           )}
         </div>
-        <div className="flex items-center gap-3 pl-6 border-l border-[#e8ebf3] dark:border-[#2d3748]">
+        <div className="flex items-center gap-3 pl-4 border-l border-[#e8ebf3] dark:border-[#2d3748] min-w-0">
           {isLoadingUser ? (
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
@@ -243,7 +243,7 @@ export const AppHeader = ({
                   </div>
                 )}
               </div>
-              <div className="flex flex-col overflow-hidden">
+              <div className="flex flex-col overflow-hidden min-w-0">
                 <span className="text-sm font-bold text-[#0e121b] dark:text-white truncate">
                   {user.name}
                 </span>

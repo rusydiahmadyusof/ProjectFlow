@@ -3,9 +3,10 @@
 import { useState, useMemo, Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Task } from './types';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { ProjectHeader, TaskTable, TaskAnalytics } from './tasks';
 import { useTasks } from '@/hooks/useTasks';
+import { useProjectProgressSync } from '@/hooks/useProjectProgress';
 import { AddTaskModal, TaskDetailsModal } from './modals';
 import { useProjects } from '@/hooks/useProjects';
 import { useUser } from '@/hooks/useUser';
@@ -52,6 +53,16 @@ const TasksScreenContent = () => {
       }
     }
   }, [taskId, tasks]);
+
+  // Keep selected task in sync with latest data so modal updates in "real time"
+  useEffect(() => {
+    if (!selectedTask) return;
+
+    const updated = tasks.find((t) => t.id === selectedTask.id);
+    if (updated && updated !== selectedTask) {
+      setSelectedTask(updated);
+    }
+  }, [tasks, selectedTask]);
 
   const filteredAndSortedTasks = useMemo(() => {
     let filtered = [...tasks];
@@ -113,6 +124,9 @@ const TasksScreenContent = () => {
     console.log('Load more tasks');
   };
 
+  // Keep project.progress and taskCount in sync with actual tasks
+  useProjectProgressSync(projectId || undefined, tasks);
+
   return (
     <>
       <AppLayout
@@ -121,7 +135,7 @@ const TasksScreenContent = () => {
         searchPlaceholder="Search tasks, projects, people..."
         onSearchChange={setSearchQuery}
       >
-        <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-8">
+        <PageContent maxWidth="wide">
           {selectedProject && (
             <ProjectHeader
               teamMembers={projectMembers.map((m) => m.avatar)}
@@ -139,7 +153,7 @@ const TasksScreenContent = () => {
               }
             />
           )}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="flex flex-col gap-2">
               <h1 className="text-text-main dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
                 {selectedProject ? `${selectedProject.name} Tasks` : 'All Tasks'}
@@ -173,7 +187,7 @@ const TasksScreenContent = () => {
               onAddTask={canAddTask ? () => setIsAddTaskModalOpen(true) : undefined}
             />
           )}
-        </div>
+        </PageContent>
       </AppLayout>
       <AddTaskModal
         isOpen={isAddTaskModalOpen}

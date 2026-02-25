@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useCreateProject } from '@/hooks/useProjects';
+import { useCreateActivity } from '@/hooks/useActivities';
+import { useUser } from '@/hooks/useUser';
+import { sanitizeForStorage } from '@/lib/security';
 import type { Project } from '@/components/types';
 
 interface CreateProjectModalProps {
@@ -10,13 +13,21 @@ interface CreateProjectModalProps {
   onProjectCreated?: (project: Project) => void;
 }
 
+const inputBase =
+  'w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-gray-400 dark:placeholder:text-gray-500';
+const inputError = 'border-red-300 dark:border-red-700';
+const inputNormal = 'border-[#e8ebf3] dark:border-gray-700';
+const labelClass = 'block text-sm font-medium text-[#0e121b] dark:text-white mb-1';
+
 export const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }: CreateProjectModalProps) => {
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; client?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const createProject = useCreateProject();
+  const createActivity = useCreateActivity();
+  const { data: currentUser } = useUser();
 
   useEffect(() => {
     if (!isOpen) {
@@ -24,6 +35,12 @@ export const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }: Create
       setErrors({});
     }
   }, [isOpen]);
+
+  const resetForm = () => {
+    setName('');
+    setClient('');
+    setDueDate('');
+  };
 
   if (!isOpen) return null;
 
@@ -33,17 +50,23 @@ export const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }: Create
     setErrors({});
     try {
       const created = await createProject.mutateAsync({
-        name: name.trim(),
-        client: client.trim(),
+        name: sanitizeForStorage(name.trim()),
+        client: sanitizeForStorage(client.trim()),
         dueDate: dueDate.trim(),
         progress: 0,
         status: 'on-track',
         taskCount: 0,
         teamMembers: [],
       });
-      setName('');
-      setClient('');
-      setDueDate('');
+      createActivity.mutateAsync({
+        user: currentUser?.name ?? 'Someone',
+        action: 'created project',
+        target: created.name,
+        icon: 'folder_open',
+        iconColor: 'text-orange-600',
+        bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+      }).catch(() => {});
+      resetForm();
       onClose();
       onProjectCreated?.(created);
     } catch (error) {
@@ -53,82 +76,86 @@ export const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }: Create
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-[#1a202c] rounded-xl shadow-xl w-full max-w-md mx-4 p-6"
+        className="bg-white dark:bg-[#1a202c] rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] flex flex-col mx-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-[#0e121b] dark:text-white">Create New Project</h2>
+        <div className="flex-shrink-0 flex items-center justify-between p-6 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-[#0e121b] dark:text-white">Create New Project</h2>
+            <p className="text-sm text-[#506395] dark:text-gray-400 mt-1">
+              Enter the project name, client, and due date.
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-[#506395] hover:text-[#0e121b] dark:hover:text-white transition-colors"
+            className="text-[#506395] hover:text-[#0e121b] dark:hover:text-white transition-colors p-1"
             aria-label="Close modal"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {submitError && (
-            <div className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm" role="alert">
-              {submitError}
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-[#0e121b] dark:text-white mb-2">
-              Project Name *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-                if (submitError) setSubmitError(null);
-              }}
-              required
-              maxLength={100}
-              className={`w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary ${
-                errors.name
-                  ? 'border-red-300 dark:border-red-700'
-                  : 'border-[#e8ebf3] dark:border-gray-700'
-              }`}
-              placeholder="Enter project name"
-            />
-            {errors.name && (
-              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 space-y-4">
+            {submitError && (
+              <div
+                className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm"
+                role="alert"
+              >
+                {submitError}
+              </div>
             )}
+
+            <div>
+              <label className={labelClass}>Project Name *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                  if (submitError) setSubmitError(null);
+                }}
+                required
+                maxLength={200}
+                className={`${inputBase} ${errors.name ? inputError : inputNormal}`}
+                placeholder="e.g. Q1 Marketing Campaign"
+              />
+              {errors.name && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label className={labelClass}>Client Name</label>
+              <input
+                type="text"
+                value={client}
+                onChange={(e) => {
+                  setClient(e.target.value);
+                  if (submitError) setSubmitError(null);
+                }}
+                maxLength={200}
+                className={`${inputBase} ${inputNormal}`}
+                placeholder="Enter client or internal stakeholder"
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Due Date</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  if (submitError) setSubmitError(null);
+                }}
+                className={`${inputBase} ${inputNormal}`}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-[#0e121b] dark:text-white mb-2">
-              Client Name
-            </label>
-            <input
-              type="text"
-              value={client}
-              onChange={(e) => {
-                setClient(e.target.value);
-                if (submitError) setSubmitError(null);
-              }}
-              className="w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="Enter client name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#0e121b] dark:text-white mb-2">
-              Due Date
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => {
-                setDueDate(e.target.value);
-                if (submitError) setSubmitError(null);
-              }}
-              className="w-full px-4 py-2.5 bg-background-light dark:bg-gray-800 border border-[#e8ebf3] dark:border-gray-700 rounded-lg text-[#0e121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
-            />
-          </div>
-          <div className="flex gap-3 pt-4">
+
+          <div className="flex-shrink-0 flex gap-3 p-6 pt-4 border-t border-[#e8ebf3] dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}

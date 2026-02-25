@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { QuickStats, ProjectsGrid } from './projects';
 
 export const ProjectsScreen = () => {
@@ -15,10 +15,10 @@ export const ProjectsScreen = () => {
         searchPlaceholder="Search projects..."
         onSearchChange={setSearchQuery}
       >
-        <div className="max-w-7xl mx-auto flex flex-col gap-8">
+        <PageContent>
           <QuickStats />
           <ProjectsGrid searchQuery={searchQuery} />
-        </div>
+        </PageContent>
       </AppLayout>
     </>
   );

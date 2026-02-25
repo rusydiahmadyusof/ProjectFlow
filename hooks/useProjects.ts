@@ -10,6 +10,9 @@ function normalizeProject(row: Record<string, unknown>): Project {
     id: String(row.id ?? ''),
     name: String(row.name ?? ''),
     client: String(row.client ?? ''),
+    description: row.description != null ? String(row.description) : undefined,
+    goals: row.goals != null ? String(row.goals) : undefined,
+    scope: row.scope != null ? String(row.scope) : undefined,
     progress: Number(row.progress ?? 0),
     status: (row.status as Project['status']) ?? 'on-track',
     dueDate: String(row.dueDate ?? row.due_date ?? ''),
@@ -150,6 +153,9 @@ export const useDeleteProject = () => {
     mutationFn: async (id: string) => {
       await withErrorHandling(
         async () => {
+          // First delete all tasks belonging to this project to avoid orphaned tasks
+          await supabase.from('tasks').delete().eq('projectId', id);
+
           const { data, error } = await supabase.from('projects').delete().eq('id', id).select();
           return { data, error };
         },

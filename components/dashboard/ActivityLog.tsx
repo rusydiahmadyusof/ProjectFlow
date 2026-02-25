@@ -1,14 +1,28 @@
 'use client';
 
 import { useActivities } from '@/hooks/useActivities';
+import { Card } from '@/components/ui';
+
+const formatActivityTime = (time: string): string => {
+  const date = new Date(time);
+  if (Number.isNaN(date.getTime())) return time;
+  const now = new Date();
+  const sec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (sec < 60) return 'Just now';
+  if (sec < 3600) return `${Math.floor(sec / 60)} minutes ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)} hours ago`;
+  if (sec < 172800) return 'Yesterday';
+  if (sec < 604800) return `${Math.floor(sec / 86400)} days ago`;
+  return date.toLocaleDateString();
+};
 
 export const ActivityLog = () => {
   const { data: activities = [], isLoading } = useActivities();
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-        <div className="flex justify-between items-start mb-4">
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Log</h3>
             <p className="text-xs text-[#506395] mt-0.5">Recent user actions</p>
@@ -17,15 +31,30 @@ export const ActivityLog = () => {
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[#506395] text-sm">Loading...</p>
         </div>
-      </div>
+      </Card>
     );
   }
-  // Show only latest 3 activities
   const displayActivities = activities.slice(0, 3);
 
+  if (displayActivities.length === 0) {
+    return (
+      <Card className="h-full flex flex-col">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Log</h3>
+            <p className="text-xs text-[#506395] mt-0.5">Recent user actions</p>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-[#506395] text-sm">No activity yet. Create a project or task to see updates here.</p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <div className="bg-white dark:bg-[#1a202c] p-5 rounded-lg shadow-sm border border-[#e8ebf3] dark:border-[#2d3748] flex flex-col h-full min-h-0">
-      <div className="flex justify-between items-start mb-4">
+    <Card className="h-full flex flex-col">
+      <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-sm font-bold text-[#0e121b] dark:text-white">Activity Log</h3>
           <p className="text-xs text-[#506395] mt-0.5">Recent user actions</p>
@@ -54,11 +83,11 @@ export const ActivityLog = () => {
                 <span className="font-bold">{activity.user}</span> {activity.action}{' '}
                 {activity.target && <span className="font-medium">{activity.target}</span>}
               </p>
-              <p className="text-[10px] text-[#506395] mt-0.5">{activity.time}</p>
+              <p className="text-[10px] text-[#506395] mt-0.5">{formatActivityTime(activity.time)}</p>
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 };

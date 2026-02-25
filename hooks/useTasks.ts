@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { Task } from '@/components/types';
 import { supabase } from '@/lib/supabase';
 import { getUserFriendlyErrorMessage, withErrorHandling } from '@/lib/errorHandler';
@@ -73,6 +73,39 @@ export const useTasks = (params?: FetchTasksParams) => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - tasks don't change that often
     refetchOnMount: false, // Use cached data if available
+  });
+};
+
+export type TaskCountsByAssignee = Record<string, { assigned: number; overdue: number }>;
+
+const fetchTaskCountsByAssignee = async (): Promise<TaskCountsByAssignee> => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('assignee, status')
+    .limit(5000);
+
+  if (error) {
+    const errorInfo = getUserFriendlyErrorMessage(error, 'fetching task counts');
+    throw new Error(errorInfo.message);
+  }
+
+  const counts: TaskCountsByAssignee = {};
+  for (const row of data ?? []) {
+    const assignee = row?.assignee as { id?: string } | null;
+    const assigneeId = assignee?.id;
+    if (!assigneeId) continue;
+    if (!counts[assigneeId]) counts[assigneeId] = { assigned: 0, overdue: 0 };
+    counts[assigneeId].assigned += 1;
+    if (row?.status === 'overdue') counts[assigneeId].overdue += 1;
+  }
+  return counts;
+};
+
+export const useTaskCountsByAssignee = () => {
+  return useQuery<TaskCountsByAssignee>({
+    queryKey: ['tasks', 'counts-by-assignee'],
+    queryFn: fetchTaskCountsByAssignee,
+    staleTime: 1 * 60 * 1000, // 1 minute - keep counts reasonably fresh
   });
 };
 
@@ -205,6 +238,7 @@ export const useCreateTask = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
     },
   });
 };
@@ -229,6 +263,7 @@ export const useUpdateTask = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
     },
   });
 };
@@ -249,6 +284,7 @@ export const useDeleteTask = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
     },
   });
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AppLayout } from './layout/AppLayout';
+import { AppLayout, PageContent } from './layout';
 import { ProjectCompletion } from './dashboard/ProjectCompletion';
 import { ActivityTrends } from './dashboard/ActivityTrends';
 import { ProjectProgress } from './dashboard/ProjectProgress';
@@ -32,7 +32,7 @@ export const Dashboard = () => {
         showSearch
         searchPlaceholder="Search projects, tasks, people..."
       >
-        <div className="max-w-[1200px] mx-auto flex flex-col gap-5 h-full">
+        <PageContent>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 flex-shrink-0">
             <div>
               <h1 className="text-2xl font-black tracking-tight text-[#0e121b] dark:text-white">
@@ -43,13 +43,13 @@ export const Dashboard = () => {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
             <ProjectCompletion />
             <ActivityTrends />
             <ProjectProgress />
             <ActivityLog />
           </div>
-        </div>
+        </PageContent>
       </AppLayout>
     </>
   );

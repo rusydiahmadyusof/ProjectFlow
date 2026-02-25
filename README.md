@@ -2,6 +2,8 @@
 
 Project management app built with Next.js, React, TypeScript, Tailwind CSS, and Supabase.
 
+![ProjectFlow dashboard preview](pflow.png)
+
 ## Local setup
 
 1. Install dependencies: `npm install`
